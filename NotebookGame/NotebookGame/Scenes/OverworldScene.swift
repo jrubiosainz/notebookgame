@@ -36,6 +36,7 @@ final class OverworldScene: SKScene {
     private var distanceToNextEncounter: CGFloat = 0
     private var pendingTarget: Interaction?
     private var isBusy = false                  // suppresses input during transitions
+    private var lastUpdate: TimeInterval = 0
 
     private enum Interaction {
         case npc(NPCDef)
@@ -79,6 +80,10 @@ final class OverworldScene: SKScene {
         worldNode.addChild(mapNode)
         addChild(worldNode)
 
+        // `player` is a long-lived stored property. Clearing the old map did not
+        // detach it from the previous prop layer, and SpriteKit throws when a
+        // node that still has a parent is added somewhere else.
+        player.removeFromParent()
         player.position = mapNode.position(ofTileX: state.save.tileX, y: state.save.tileY)
         player.zPosition = Layer.entity(y: player.position.y)
         mapNode.propLayer.addChild(player)
@@ -192,12 +197,18 @@ final class OverworldScene: SKScene {
     // MARK: - Frame update
 
     override func update(_ currentTime: TimeInterval) {
+        // Real elapsed time, clamped: after the app is backgrounded the first
+        // delta is huge, and an unclamped step would tunnel straight through a
+        // wall because collision is only sampled at the destination.
+        let raw = lastUpdate == 0 ? 1.0 / 60.0 : currentTime - lastUpdate
+        let dt = min(CGFloat(raw), 1.0 / 20.0)
+        lastUpdate = currentTime
+
         guard !isBusy, !dialogue.isPresenting, menuOverlay == nil, shopOverlay == nil else {
             player.update(direction: .zero)
             return
         }
 
-        let dt: CGFloat = 1.0 / 60.0
         let input = joystick.vector
         move(by: input, dt: dt)
         player.update(direction: input)
@@ -381,9 +392,13 @@ final class OverworldScene: SKScene {
         fade.zPosition = Layer.ui + 500
         fade.alpha = 0
         cameraNode.addChild(fade)
+        fade.run(.fadeIn(withDuration: 0.22))
 
-        fade.run(.sequence([
-            .fadeIn(withDuration: 0.22),
+        // The sequence below runs on the scene rather than on `fade`. Rebuilding
+        // the world detaches every camera child, and a detached node stops
+        // evaluating its actions, which would strand `isBusy` at true forever.
+        run(.sequence([
+            .wait(forDuration: 0.24),
             .run { [weak self] in
                 guard let self else { return }
                 self.state.setPosition(mapID: exit.targetMap, x: exit.targetX, y: exit.targetY)
@@ -402,21 +417,20 @@ final class OverworldScene: SKScene {
                     .fadeOut(withDuration: 0.4),
                     .removeFromParent()
                 ]))
+
+                // buildInterface cleared the old overlay, so fade back in
+                // through a fresh one.
+                let cover = SKSpriteNode(color: Paper.background, size: self.size)
+                cover.zPosition = Layer.ui + 500
+                self.cameraNode.addChild(cover)
+                cover.run(.sequence([
+                    .fadeOut(withDuration: 0.28),
+                    .removeFromParent()
+                ]))
             },
-            .wait(forDuration: 0.05)
-        ])) { [weak self] in
-            guard let self else { return }
-            // buildInterface replaced the camera's children, so fade back in
-            // using a fresh overlay.
-            let cover = SKSpriteNode(color: Paper.background, size: self.size)
-            cover.zPosition = Layer.ui + 500
-            self.cameraNode.addChild(cover)
-            cover.run(.sequence([
-                .fadeOut(withDuration: 0.28),
-                .removeFromParent(),
-                .run { self.isBusy = false }
-            ]))
-        }
+            .wait(forDuration: 0.3),
+            .run { [weak self] in self?.isBusy = false }
+        ]))
     }
 
     /// Stepping directly onto an exit tile also travels, so the signpost is a

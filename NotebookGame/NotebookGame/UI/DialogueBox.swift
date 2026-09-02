@@ -157,6 +157,7 @@ enum Toast {
         let label = Paper.label(message, size: 24)
         label.zPosition = Layer.ui + 200
         label.setScale(0.7)
+        label.alpha = 0  // otherwise the fadeIn below has nothing to fade from
 
         if let camera = scene.camera {
             label.position = point ?? CGPoint(x: 0, y: scene.size.height * 0.18)

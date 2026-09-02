@@ -114,13 +114,14 @@ enum Paper {
     static let tileSize: CGFloat = 96
 
     /// Prefers a handwriting face, falling back gracefully across iOS versions.
-    static var handFont: String {
+    /// Resolved once: this is read every time a label is built.
+    static let handFont: String = {
         let candidates = ["Chalkboard SE", "Noteworthy-Bold", "Bradley Hand", "MarkerFelt-Wide"]
         for name in candidates where UIFont(name: name, size: 12) != nil {
             return name
         }
         return "Helvetica-Bold"
-    }
+    }()
 
     static func label(_ text: String, size: CGFloat, color: UIColor = Paper.ink) -> SKLabelNode {
         let node = SKLabelNode(fontNamed: handFont)

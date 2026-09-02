@@ -201,7 +201,7 @@ final class BattleScene: SKScene {
         }
     }
 
-    /// Lays out up to four commands in a 2x2 grid at the bottom of the screen.
+    /// Lays out up to six commands in a two-column grid at the bottom of the screen.
     private func layoutButtons(_ entries: [(String, Bool, () -> Void)]) {
         buttonLayer.removeAllChildren()
         buttons.removeAll()

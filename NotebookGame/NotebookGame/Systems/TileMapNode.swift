@@ -54,12 +54,12 @@ final class TileMapNode: SKNode {
     }
 
     func ground(x: Int, y: Int) -> Ground? {
-        guard isInside(x: x, y: y) else { return nil }
+        guard isInside(x: x, y: y), x < groundGrid[y].count else { return nil }
         return groundGrid[y][x]
     }
 
     func prop(x: Int, y: Int) -> Prop {
-        guard isInside(x: x, y: y) else { return .none }
+        guard isInside(x: x, y: y), x < propGrid[y].count else { return .none }
         return propGrid[y][x]
     }
 
@@ -105,8 +105,8 @@ final class TileMapNode: SKNode {
     }
 
     private func buildGround() {
-        // Each distinct ground type is drawn once into a tiled sprite so we do
-        // not pay for hundreds of individual nodes.
+        // One sprite per tile. At 24x16 that is 384 nodes, which SpriteKit
+        // batches into a single draw call because they all share one atlas.
         for (rowIndex, row) in groundGrid.enumerated() {
             for (columnIndex, ground) in row.enumerated() {
                 let sprite = SKSpriteNode(texture: Art.texture(ground.textureName, in: "tiles"))
@@ -119,7 +119,7 @@ final class TileMapNode: SKNode {
     }
 
     private func buildProps() {
-        propLayer.zPosition = 0
+        propLayer.zPosition = 1     // above the ground sprites, which sit at 0
         addChild(propLayer)
 
         for (rowIndex, row) in propGrid.enumerated() {
