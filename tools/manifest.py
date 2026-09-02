@@ -331,9 +331,11 @@ TITLE = [
     Asset(
         key="title/app_icon",
         subject=(
-            "an app icon composition: a single spiral-bound notebook seen from "
-            "the front with a big bold doodle star drawn on its cover, "
-            "centered, filling the frame"
+            "an app icon emblem: Nib, a tiny brave doodle adventurer, raises an "
+            "oversized sharpened pencil like a sword while standing on an open "
+            "spiral notebook; behind him is one large irregular five-point ink "
+            "star and one energetic black ink swoosh; bold readable silhouette, "
+            "no words or letters, centered with a generous safe margin"
         ),
         transparent=False,
         trim=False,
