@@ -10,6 +10,7 @@ import UIKit
 /// is immediately loadable here by the same key.
 enum Art {
     private static var cache: [String: SKTexture] = [:]
+    private static var frameCache: [String: [SKTexture]] = [:]
     private static let lock = NSLock()
 
     /// A 1x1 transparent stand-in so a missing asset never crashes the game.
@@ -46,6 +47,10 @@ enum Art {
 
         let texture = SKTexture(image: image)
         texture.filteringMode = .linear
+        // Every asset is drawn at 1024px and shown far smaller: ground tiles go
+        // out at 96pt, a 10x minification. Without mipmaps all that hatching
+        // aliases into shimmer as the camera scrolls.
+        texture.usesMipmaps = true
 
         lock.lock()
         cache[key] = texture
@@ -56,6 +61,13 @@ enum Art {
     /// Loads the numbered frames a sheet was sliced into, in order.
     /// Falls back to a single static texture when a sheet is unavailable.
     static func frames(in folder: String, fallback: String, fallbackFolder: String) -> [SKTexture] {
+        lock.lock()
+        if let hit = frameCache[folder] {
+            lock.unlock()
+            return hit
+        }
+        lock.unlock()
+
         guard let root = assetsRoot else {
             return [texture(fallback, in: fallbackFolder)]
         }
@@ -74,10 +86,17 @@ enum Art {
             }
             let t = SKTexture(image: image)
             t.filteringMode = .linear
+            t.usesMipmaps = true
             return t
         }
 
-        return textures.isEmpty ? [texture(fallback, in: fallbackFolder)] : textures
+        guard !textures.isEmpty else { return [texture(fallback, in: fallbackFolder)] }
+
+        // Decoding several 1024px PNGs is not something to repeat every battle.
+        lock.lock()
+        frameCache[folder] = textures
+        lock.unlock()
+        return textures
     }
 
     private static func frameIndex(_ filename: String) -> Int {

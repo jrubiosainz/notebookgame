@@ -4,7 +4,6 @@
 
 # Raw generation cache (large, reproducible from tools/manifest.py)
 .assetcache/
-assets/.cache.json
 
 # Generator output log
 gen.log
