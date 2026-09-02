@@ -198,6 +198,13 @@ final class GameState: ObservableObject {
 
     // MARK: - Story flags
 
+    /// Named so the write site and the read site cannot drift apart. They did:
+    /// the battle wrote "beat_big_smudge" while the map hid the boss on
+    /// "boss_defeated", so the final boss respawned forever.
+    enum Flag {
+        static let bossDefeated = "boss_defeated"
+    }
+
     func has(flag: String) -> Bool { save.flags.contains(flag) }
 
     func set(flag: String) {

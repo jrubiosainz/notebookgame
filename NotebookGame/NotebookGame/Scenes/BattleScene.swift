@@ -411,7 +411,7 @@ final class BattleScene: SKScene {
                                    coins: enemy.coinReward,
                                    loot: loot)
 
-        if isBoss { state.set(flag: "beat_big_smudge") }
+        if isBoss { state.set(flag: GameState.Flag.bossDefeated) }
 
         var lines = ["You won! +\(enemy.experienceReward) XP, +\(enemy.coinReward) coins."]
         if !loot.isEmpty {

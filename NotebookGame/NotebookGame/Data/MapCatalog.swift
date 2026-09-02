@@ -335,7 +335,7 @@ enum MapCatalog {
                     "\"I will smudge you into nothing.\""
                    ],
                    bossID: "big_smudge",
-                   hiddenWhenFlag: "boss_defeated")
+                   hiddenWhenFlag: GameState.Flag.bossDefeated)
         ],
         exits: [
             ExitDef(x: 0, y: 8, targetMap: "eraser_desert", targetX: 22, targetY: 8,
