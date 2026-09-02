@@ -171,12 +171,29 @@ maths can be reasoned about (and tested) on its own.
 
 ## Status
 
-The art pipeline and the game logic are complete. **The Swift code has not been
-compiled yet** — it was written on a Windows machine, where no Swift toolchain
-for iOS exists. Expect to fix a small number of compile errors on the first
-build on a Mac. Everything that *could* be verified without a compiler was: the
-maps are checked by script, and the asset names are cross-checked between the
-generator and the game.
+**Version 1.0 (build 1) is compiled and device-tested.** The checked-in Xcode
+project builds successfully in Release for both the iOS Simulator and a physical
+iPhone, with no third-party dependencies. On 2 September 2026 it was signed,
+installed and launched on a physical iPhone 13 Pro Max; no crash report was
+produced.
+
+The title screen and generated artwork were inspected in the simulator. The asset
+validator cross-checks every texture referenced by the 20 Swift source files, and
+the map validator confirms the dimensions, tile vocabulary and reachability of
+all three maps. The app icon is a 1024×1024 opaque GPT Image 2 emblem of Nib
+raising a pencil-sword over an open notebook; its generation subject remains in
+`tools/manifest.py`, and `python tools/make_icon.py` installs the flattened icon
+into the Xcode asset catalogue.
+
+Validated with:
+
+```bash
+python tools/validate_assets.py
+python tools/validate_maps.py
+xcodebuild -project NotebookGame/NotebookGame.xcodeproj \
+  -scheme NotebookGame -configuration Release \
+  -destination 'generic/platform=iOS' build
+```
 
 ---
 
