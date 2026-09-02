@@ -107,22 +107,35 @@ final class TitleScene: SKScene {
         }
 
         // Overwriting a save is the one destructive action in the game, so ask.
+        let buttonsY = size.height * 0.32
+        let buttonHeight: CGFloat = 62
+        let gap: CGFloat = 14
+        // Share the usable width between the two buttons instead of pinning them
+        // to fixed offsets, which pushed the wider one off the left edge.
+        let available = min(size.width - 40, 420)
+        let confirmWidth = (available - gap) * 0.62
+        let cancelWidth = available - gap - confirmWidth
+        let left = size.width / 2 - available / 2
+
         let box = DialogueBox(width: min(size.width - 48, 640))
-        box.position = CGPoint(x: size.width / 2, y: size.height * 0.16)
+        // Hang the bubble under the two buttons rather than at a fixed height,
+        // so a taller panel never grows into them.
+        box.position = CGPoint(x: size.width / 2,
+                               y: buttonsY - buttonHeight / 2 - 16 - box.height / 2)
         addChild(box)
 
         let confirm = PaperButton(title: "ERASE & START",
-                                  size: CGSize(width: 220, height: 62),
-                                  fontSize: 20) { [weak self] in
+                                  size: CGSize(width: confirmWidth, height: buttonHeight),
+                                  fontSize: 18) { [weak self] in
             self?.state.startNewGame()
             self?.enterWorld()
         }
-        confirm.position = CGPoint(x: size.width / 2 - 120, y: size.height * 0.32)
+        confirm.position = CGPoint(x: left + confirmWidth / 2, y: buttonsY)
         confirm.zPosition = Layer.ui + 100
         addChild(confirm)
 
         let cancel = PaperButton(title: "KEEP",
-                                 size: CGSize(width: 140, height: 62),
+                                 size: CGSize(width: cancelWidth, height: buttonHeight),
                                  fontSize: 20) { [weak self] in
             guard let self else { return }
             box.dismiss()
@@ -130,7 +143,7 @@ final class TitleScene: SKScene {
             self.children.filter { $0.name == "cancelNewGame" }.forEach { $0.removeFromParent() }
         }
         cancel.name = "cancelNewGame"
-        cancel.position = CGPoint(x: size.width / 2 + 120, y: size.height * 0.32)
+        cancel.position = CGPoint(x: left + confirmWidth + gap + cancelWidth / 2, y: buttonsY)
         cancel.zPosition = Layer.ui + 100
         addChild(cancel)
 

@@ -4,6 +4,7 @@
     python tools/generate_assets.py                # everything that is missing
     python tools/generate_assets.py --only enemies # one category
     python tools/generate_assets.py --force        # regenerate even if cached
+    python tools/generate_assets.py --reprocess    # re-run postprocessing, free
     python tools/generate_assets.py --list         # show the catalogue
 
 Configuration comes from environment variables (or a .env file at the repo
@@ -23,11 +24,13 @@ import argparse
 import base64
 import hashlib
 import json
+import mimetypes
 import os
 import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -35,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from manifest import ALL_ASSETS, Asset  # noqa: E402
 from postprocess import process  # noqa: E402
-from style import build_prompt  # noqa: E402
+from style import build_prompt, build_reference_prompt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
@@ -81,25 +84,8 @@ def load_env() -> dict[str, str]:
 # --------------------------------------------------------------------------
 # Generation
 # --------------------------------------------------------------------------
-def request_image(cfg: dict[str, str], prompt: str, asset: Asset) -> bytes:
-    """Call the image endpoint, retrying on throttling and transient errors."""
-    url = (
-        f"{cfg['endpoint']}/openai/deployments/{cfg['deployment']}"
-        f"/images/generations?api-version={API_VERSION}"
-    )
-    body: dict[str, object] = {
-        "prompt": prompt,
-        "n": 1,
-        "size": asset.size,
-        "quality": asset.quality,
-        "output_format": "png",
-    }
-    if asset.transparent:
-        body["background"] = "transparent"
-
-    payload = json.dumps(body).encode()
-    headers = {"api-key": cfg["key"], "Content-Type": "application/json"}
-
+def _post(url: str, payload: bytes, headers: dict[str, str], label: str) -> bytes:
+    """POST with retries on throttling, returning the decoded PNG bytes."""
     delay = 8.0
     last: Exception | None = None
     for attempt in range(1, MAX_RETRIES + 1):
@@ -120,43 +106,151 @@ def request_image(cfg: dict[str, str], prompt: str, asset: Asset) -> bytes:
             last = exc
 
         if attempt < MAX_RETRIES:
-            print(f"    retry {attempt}/{MAX_RETRIES - 1} for {asset.key} in {delay:.0f}s")
+            print(f"    retry {attempt}/{MAX_RETRIES - 1} for {label} in {delay:.0f}s")
             time.sleep(delay)
             delay = min(delay * 2, 120)
 
-    raise RuntimeError(f"{asset.key} failed after {MAX_RETRIES} attempts: {last}")
+    raise RuntimeError(f"{label} failed after {MAX_RETRIES} attempts: {last}")
 
 
-def fingerprint(prompt: str, asset: Asset) -> str:
-    blob = json.dumps(
-        {
-            "prompt": prompt,
-            "size": asset.size,
-            "quality": asset.quality,
-            "transparent": asset.transparent,
-        },
-        sort_keys=True,
+def request_image(cfg: dict[str, str], prompt: str, asset: Asset) -> bytes:
+    """Draw an asset from scratch."""
+    url = (
+        f"{cfg['endpoint']}/openai/deployments/{cfg['deployment']}"
+        f"/images/generations?api-version={API_VERSION}"
     )
+    body: dict[str, object] = {
+        "prompt": prompt,
+        "n": 1,
+        "size": asset.size,
+        "quality": asset.quality,
+        "output_format": "png",
+    }
+    if asset.transparent:
+        body["background"] = "transparent"
+
+    headers = {"api-key": cfg["key"], "Content-Type": "application/json"}
+    return _post(url, json.dumps(body).encode(), headers, asset.key)
+
+
+def request_image_edit(
+    cfg: dict[str, str], prompt: str, asset: Asset, reference: Path
+) -> bytes:
+    """Draw an asset *from* an existing one.
+
+    A text prompt cannot pin down a character's identity: asking four times for
+    "the same spiky-haired kid" produced four different kids, which is why the
+    hero used to change design between walking down, walking sideways and
+    fighting. Handing the model the actual idle drawing anchors every other pose
+    to it.
+    """
+    url = (
+        f"{cfg['endpoint']}/openai/deployments/{cfg['deployment']}"
+        f"/images/edits?api-version={API_VERSION}"
+    )
+    boundary = uuid.uuid4().hex
+    parts: list[bytes] = []
+
+    def field(name: str, value: str) -> None:
+        parts.append(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"'
+            f"\r\n\r\n{value}\r\n".encode()
+        )
+
+    ctype = mimetypes.guess_type(reference.name)[0] or "image/png"
+    parts.append(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="image"; '
+        f'filename="{reference.name}"\r\nContent-Type: {ctype}\r\n\r\n'.encode()
+        + reference.read_bytes()
+        + b"\r\n"
+    )
+    field("prompt", prompt)
+    field("n", "1")
+    field("size", asset.size)
+    field("quality", asset.quality)
+    if asset.transparent:
+        field("background", "transparent")
+
+    payload = b"".join(parts) + f"--{boundary}--\r\n".encode()
+    headers = {
+        "api-key": cfg["key"],
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+    }
+    return _post(url, payload, headers, asset.key)
+
+
+def _reference_digest(reference: Path) -> str | None:
+    """Identify the drawing a derived pose was copied from.
+
+    Prefer the cached original over the processed file: postprocessing tweaks
+    change the PNG on disk but not what the model was actually asked to copy,
+    and re-billing five character sheets because a filter changed is not a
+    trade anybody wants.
+    """
+    stem = reference.relative_to(ASSETS).with_suffix("").as_posix().replace("/", "__")
+    raws = sorted(CACHE.glob(f"{stem}.*.raw.png"))
+    source = raws[-1] if raws else (reference if reference.exists() else None)
+    if source is None:
+        return None
+    return hashlib.sha256(source.read_bytes()).hexdigest()[:16]
+
+
+def fingerprint(prompt: str, asset: Asset, reference: Path | None) -> str:
+    payload: dict[str, object] = {
+        "prompt": prompt,
+        "size": asset.size,
+        "quality": asset.quality,
+        "transparent": asset.transparent,
+    }
+    # Only present for derived poses, so every existing asset keeps the cache
+    # key it already has and a plain run never re-bills art that is drawn.
+    if reference is not None:
+        digest = _reference_digest(reference)
+        if digest:
+            payload["reference"] = digest
+    blob = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
-def generate_one(cfg: dict[str, str], asset: Asset, force: bool) -> str:
-    prompt = build_prompt(asset.subject, face=asset.face, sheet=asset.sheet)
-    digest = fingerprint(prompt, asset)
+def generate_one(cfg: dict[str, str], asset: Asset, force: bool, reprocess: bool) -> str:
+    reference = (ASSETS / f"{asset.reference}.png") if asset.reference else None
+    if reference is not None:
+        prompt = build_reference_prompt(asset.subject, sheet=asset.sheet)
+    else:
+        prompt = build_prompt(asset.subject, face=asset.face, sheet=asset.sheet)
+    digest = fingerprint(prompt, asset, reference)
 
     out = ASSETS / f"{asset.key}.png"
     stamp = CACHE / f"{asset.key.replace('/', '__')}.{digest}"
     raw = CACHE / f"{asset.key.replace('/', '__')}.{digest}.raw.png"
 
-    if not force and out.exists() and stamp.exists():
+    if not force and not reprocess and out.exists() and stamp.exists():
         return f"cached   {asset.key}"
 
-    if force or not raw.exists():
-        blob = request_image(cfg, prompt, asset)
+    # --reprocess re-runs postprocessing over art we already paid for, which is
+    # what you want after changing anything in postprocess.py. It must never
+    # reach the network: an asset with no cached original is simply skipped.
+    if reprocess and not force:
+        if not raw.exists():
+            return f"skipped  {asset.key} (no cached original)"
+        blob = raw.read_bytes()
+        note = "redone  "
+    elif force or not raw.exists():
+        if reference is not None:
+            if not reference.exists():
+                raise RuntimeError(
+                    f"reference {reference.relative_to(ROOT)} is missing; "
+                    f"generate {asset.reference} first"
+                )
+            blob = request_image_edit(cfg, prompt, asset, reference)
+        else:
+            blob = request_image(cfg, prompt, asset)
         raw.parent.mkdir(parents=True, exist_ok=True)
         raw.write_bytes(blob)
+        note = "created "
     else:
         blob = raw.read_bytes()
+        note = "redone  "
 
     out.parent.mkdir(parents=True, exist_ok=True)
     process(
@@ -168,7 +262,7 @@ def generate_one(cfg: dict[str, str], asset: Asset, force: bool) -> str:
         slice_to=(ASSETS / asset.slice_to) if asset.slice_to else None,
     )
     stamp.write_text(prompt, encoding="utf-8")
-    return f"created  {asset.key}"
+    return f"{note} {asset.key}"
 
 
 # --------------------------------------------------------------------------
@@ -178,11 +272,15 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Generate NotebookGame art with gpt-image-2.")
     ap.add_argument("--only", help="limit to a category prefix, e.g. enemies or props/rock")
     ap.add_argument("--force", action="store_true", help="regenerate even when cached")
+    ap.add_argument("--reprocess", action="store_true",
+                    help="re-run postprocessing over already-generated art, no API calls")
     ap.add_argument("--list", action="store_true", help="print the catalogue and exit")
     ap.add_argument("--workers", type=int, default=MAX_WORKERS)
     args = ap.parse_args()
 
     selected = [a for a in ALL_ASSETS if not args.only or a.key.startswith(args.only)]
+    # An asset that copies another one has to be drawn after it exists.
+    selected.sort(key=lambda a: a.reference is not None)
 
     if args.list:
         for a in selected:
@@ -191,6 +289,8 @@ def main() -> int:
                 flags.append(f"sheet {a.sheet[0]}x{a.sheet[1]}")
             if a.transparent:
                 flags.append("alpha")
+            if a.reference:
+                flags.append(f"from {a.reference}")
             print(f"{a.key:38} {a.size:10} {' '.join(flags)}")
         print(f"\n{len(selected)} assets")
         return 0
@@ -201,13 +301,17 @@ def main() -> int:
 
     cfg = load_env()
     CACHE.mkdir(parents=True, exist_ok=True)
-    print(f"Generating {len(selected)} assets with {cfg['deployment']} "
+    verb = "Reprocessing" if args.reprocess and not args.force else "Generating"
+    print(f"{verb} {len(selected)} assets with {cfg['deployment']} "
           f"({args.workers} in parallel)\n")
 
     failures: list[str] = []
     done = 0
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(generate_one, cfg, a, args.force): a for a in selected}
+        futures = {
+            pool.submit(generate_one, cfg, a, args.force, args.reprocess): a
+            for a in selected
+        }
         for fut in as_completed(futures):
             asset = futures[fut]
             done += 1

@@ -55,6 +55,45 @@ def build_prompt(subject: str, *, face: bool = False, sheet: tuple[int, int] | N
     return "".join(parts)
 
 
+# --- Redrawing an existing character ----------------------------------------
+
+# Words alone cannot pin an identity down. Asking gpt-image-2 four separate
+# times for "the same spiky-haired kid" yields four different kids, which is
+# exactly why the hero used to morph between walking, idling and fighting.
+# These prompts go to the /images/edits endpoint with the canonical drawing
+# attached, so the model is copying rather than inventing.
+REFERENCE_PREFIX = (
+    "Redraw the exact character from the attached picture, keeping their "
+    "identity completely unchanged: same hairstyle, same face, same clothing, "
+    "same shoulder strap and buckle, same backpack, same boots, same "
+    "proportions, same body size, same ink line weight and same halftone "
+    "shading. Do not redesign, restyle, age or replace the character, and do "
+    "not add or remove any equipment. Only the pose and the viewing angle may "
+    "change. New pose: "
+)
+
+REFERENCE_SUFFIX = (
+    " Keep the loose childlike hand-drawn doodle look in black ink on light "
+    "gray paper, thick wobbly marker outlines, halftone dot shading, strictly "
+    "monochrome black and white with absolutely no color. Flat plain "
+    "background, no scenery, no ground plane, no frame, no border, no text, "
+    "no watermark."
+)
+
+
+def build_reference_prompt(subject: str, *, sheet: tuple[int, int] | None = None) -> str:
+    """Compose a prompt that re-poses the character in the attached reference."""
+    parts = [REFERENCE_PREFIX, subject.strip().rstrip(".") + "."]
+    if sheet:
+        parts.append(sheet_rule(*sheet))
+        parts.append(
+            " Every single pose in the grid is that same one character, "
+            "identical in design to the attached picture."
+        )
+    parts.append(REFERENCE_SUFFIX)
+    return "".join(parts)
+
+
 # --- Generation defaults ----------------------------------------------------
 
 DEFAULT_SIZE = "1024x1024"

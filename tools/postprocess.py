@@ -6,8 +6,10 @@ middle. Before SpriteKit can use it we need to:
 1. Force true monochrome. The model occasionally sneaks in a faint colour cast
    which would break the strict black-and-white art direction.
 2. Knock out any residual flat background to alpha for sprites.
-3. Trim the empty margin so the sprite's anchor point is meaningful.
-4. Slice animation sheets into individual numbered frames.
+3. Re-fill the paper *inside* closed ink outlines, which the background removal
+   wrongly eats away.
+4. Trim the empty margin so the sprite's anchor point is meaningful.
+5. Slice animation sheets into individual numbered frames.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 # Pixels this close to the corner colour are treated as background.
 BG_TOLERANCE = 26
@@ -23,6 +25,9 @@ BG_TOLERANCE = 26
 ALPHA_FLOOR = 12
 # Breathing room left around a trimmed sprite, in pixels.
 TRIM_PADDING = 6
+# The colour of the page. Everything in this game is ink drawn on paper, so an
+# enclosed area is paper, never a window through to whatever is behind.
+PAPER = (255, 255, 255)
 
 
 def _to_monochrome(img: Image.Image) -> Image.Image:
@@ -63,6 +68,39 @@ def _knockout_background(img: Image.Image) -> Image.Image:
     existing = out.getchannel("A")
     out.putalpha(ImageChops.darker(existing, mask))
     return out
+
+
+def _fill_interior_holes(img: Image.Image) -> Image.Image:
+    """Restore the paper inside closed ink outlines.
+
+    gpt-image-2's transparent background removal cannot tell the white *inside*
+    a drawn button or speech bubble from the white *around* it, so it removes
+    both. The asset comes back as a hollow ring and the game renders scenery
+    straight through the middle of every button, which makes labels unreadable.
+
+    An enclosed region is one that cannot be reached from outside the picture,
+    so flood-filling inwards from the border tells us exactly which transparent
+    pixels are background and which are paper.
+    """
+    w, h = img.size
+    holes = img.getchannel("A").point(lambda v: 255 if v <= ALPHA_FLOOR else 0)
+
+    # Pad by a pixel so every border-touching gap shares one flood seed.
+    padded = Image.new("L", (w + 2, h + 2), 255)
+    padded.paste(holes, (1, 1))
+    ImageDraw.floodfill(padded, (0, 0), 0)
+    interior = padded.crop((1, 1, w + 1, h + 1))
+
+    if not interior.getbbox():
+        return img
+
+    # Grow the patch under the ink so the outline's antialiased inner edge has
+    # paper to blend against instead of a hard cut to nothing.
+    interior = interior.filter(ImageFilter.MaxFilter(5))
+
+    backing = Image.new("RGBA", img.size, PAPER + (0,))
+    backing.paste(PAPER + (255,), (0, 0), interior)
+    return Image.alpha_composite(backing, img)
 
 
 def _trim(img: Image.Image) -> Image.Image:
@@ -110,6 +148,7 @@ def process(
 
     if transparent:
         img = _knockout_background(img)
+        img = _fill_interior_holes(img)
 
     if slice_grid and slice_to:
         # Slice from the untrimmed sheet so every cell keeps its grid position.

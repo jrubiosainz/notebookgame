@@ -113,7 +113,7 @@ enum Art {
             ("paper", "tiles"), ("path", "tiles"), ("sand", "tiles"),
             ("water", "tiles"), ("stone", "tiles"),
             ("heart_full", "ui"), ("heart_empty", "ui"), ("ink_drop", "ui"),
-            ("coin", "ui"), ("dialogue_box", "ui"),
+            ("coin", "ui"), ("dialogue_box", "ui"), ("button", "ui"),
             ("joystick_base", "ui"), ("joystick_knob", "ui")
         ]
         for (name, folder) in essentials {
@@ -149,6 +149,37 @@ enum Paper {
         node.fontColor = color
         node.horizontalAlignmentMode = .center
         node.verticalAlignmentMode = .center
+        return node
+    }
+
+    /// A hand-drawn horizontal rule, used to separate list rows.
+    ///
+    /// The generated button artwork is a slab drawn in perspective, so stretching
+    /// it into a wide list row leaves the text nowhere clean to sit. A wobbly
+    /// ruled line is both readable and closer to what a notebook actually looks
+    /// like. The wobble is a fixed pair of sine waves rather than random noise,
+    /// so a row never jitters when the list is re-rendered.
+    static func rule(width: CGFloat, color: UIColor = UIColor(white: 0.55, alpha: 1.0)) -> SKShapeNode {
+        let path = CGMutablePath()
+        let steps = max(8, Int(width / 12))
+        let amplitude = 1.1
+
+        for step in 0...steps {
+            let t = CGFloat(step) / CGFloat(steps)
+            let x = -width / 2 + width * t
+            let y = CGFloat(sin(Double(t) * 7.3) * amplitude + sin(Double(t) * 19.1) * amplitude * 0.4)
+            if step == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+
+        let node = SKShapeNode(path: path)
+        node.strokeColor = color
+        node.lineWidth = 1.6
+        node.lineCap = .round
+        node.isAntialiased = true
         return node
     }
 }

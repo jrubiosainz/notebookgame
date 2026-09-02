@@ -121,7 +121,7 @@ final class BattleScene: SKScene {
         let inset: CGFloat = 24
         let safeTop = (view?.safeAreaInsets.top ?? 0)
         let safeBottom = (view?.safeAreaInsets.bottom ?? 0)
-        let barWidth = min(size.width * 0.42, 320)
+        let barWidth = min(size.width * 0.56, 340)
 
         enemyBar = StatBar(width: barWidth, title: enemy.name, showsInk: false)
         enemyBar.position = CGPoint(x: size.width - inset - barWidth / 2,
@@ -602,12 +602,14 @@ final class StatBar: SKNode {
     private let readout: SKLabelNode
     private let showsInk: Bool
     private let barHeight: CGFloat = 14
+    /// Room kept clear on the right for "16/24   10 ink".
+    private static let readoutReserve: CGFloat = 104
 
     init(width: CGFloat, title name: String, showsInk: Bool) {
         self.barWidth = width
         self.showsInk = showsInk
-        self.title = Paper.label(name, size: 19)
-        self.readout = Paper.label("", size: 15, color: Paper.softInk)
+        self.title = Paper.label(name, size: 18)
+        self.readout = Paper.label("", size: 14, color: Paper.softInk)
         super.init()
 
         let backing = SKShapeNode(rectOf: CGSize(width: width + 22,
@@ -620,6 +622,11 @@ final class StatBar: SKNode {
         addChild(backing)
 
         title.horizontalAlignmentMode = .left
+        // The readout is pinned to the opposite edge, so the name has to give
+        // way rather than run underneath it.
+        title.numberOfLines = 1
+        title.preferredMaxLayoutWidth = width - StatBar.readoutReserve
+        title.lineBreakMode = .byTruncatingTail
         title.position = CGPoint(x: -width / 2, y: showsInk ? 26 : 14)
         title.zPosition = 1
         addChild(title)

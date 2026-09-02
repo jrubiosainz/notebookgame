@@ -20,46 +20,17 @@ class Asset:
     transparent: bool = True      # sprites need alpha; backdrops do not
     trim: bool = True             # crop away empty margins after generation
     slice_to: str | None = None   # write sliced frames to this folder
+    reference: str | None = None  # redraw this existing asset in a new pose
 
 
 # --------------------------------------------------------------------------
 # Playable characters
+#
+# nib_idle is the canonical Nib. Every other pose is produced by handing that
+# drawing back to gpt-image-2 through the image-edit endpoint, which is the
+# only way to stop the hero silently redesigning himself between animations.
 # --------------------------------------------------------------------------
 CHARACTERS = [
-    Asset(
-        key="characters/nib_walk_down",
-        subject=(
-            "a small kid adventurer named Nib with wild spiky hair, a plain "
-            "t-shirt, shorts and simple shoes, seen from the front walking "
-            "toward the viewer, thin noodle arms and legs mid-stride"
-        ),
-        face=True,
-        sheet=(4, 1),
-        size=WIDE_SIZE,
-        slice_to="characters/nib/walk_down",
-    ),
-    Asset(
-        key="characters/nib_walk_up",
-        subject=(
-            "the same small spiky-haired kid adventurer Nib seen from behind, "
-            "back of the head and back of the t-shirt visible, no face shown, "
-            "walking away from the viewer mid-stride"
-        ),
-        sheet=(4, 1),
-        size=WIDE_SIZE,
-        slice_to="characters/nib/walk_up",
-    ),
-    Asset(
-        key="characters/nib_walk_side",
-        subject=(
-            "the same small spiky-haired kid adventurer Nib in strict side "
-            "profile facing right, walking mid-stride, arms swinging"
-        ),
-        face=True,
-        sheet=(4, 1),
-        size=WIDE_SIZE,
-        slice_to="characters/nib/walk_side",
-    ),
     Asset(
         key="characters/nib_idle",
         subject=(
@@ -69,13 +40,48 @@ CHARACTERS = [
         face=True,
     ),
     Asset(
+        key="characters/nib_walk_down",
+        subject=(
+            "the character seen from the front walking straight toward the "
+            "viewer, thin noodle arms and legs mid-stride, four steps of a "
+            "walk cycle"
+        ),
+        reference="characters/nib_idle",
+        sheet=(4, 1),
+        size=WIDE_SIZE,
+        slice_to="characters/nib/walk_down",
+    ),
+    Asset(
+        key="characters/nib_walk_up",
+        subject=(
+            "the character seen from directly behind, only the back of the "
+            "spiky head and the back of the t-shirt visible and no face at "
+            "all, walking away from the viewer, four steps of a walk cycle"
+        ),
+        reference="characters/nib_idle",
+        sheet=(4, 1),
+        size=WIDE_SIZE,
+        slice_to="characters/nib/walk_up",
+    ),
+    Asset(
+        key="characters/nib_walk_side",
+        subject=(
+            "the character in strict side profile facing right, walking "
+            "mid-stride with arms swinging, four steps of a walk cycle"
+        ),
+        reference="characters/nib_idle",
+        sheet=(4, 1),
+        size=WIDE_SIZE,
+        slice_to="characters/nib/walk_side",
+    ),
+    Asset(
         key="characters/nib_attack",
         subject=(
-            "the same small spiky-haired kid adventurer Nib in side profile "
-            "facing right, swinging a giant oversized pencil like a sword in a "
-            "big dramatic arc, action pose, motion lines"
+            "the character in side profile facing right, swinging a giant "
+            "oversized pencil like a sword in a big dramatic arc, action "
+            "pose with motion lines, three stages of the swing"
         ),
-        face=True,
+        reference="characters/nib_idle",
         sheet=(3, 1),
         size=WIDE_SIZE,
         slice_to="characters/nib/attack",
@@ -83,10 +89,10 @@ CHARACTERS = [
     Asset(
         key="characters/nib_hurt",
         subject=(
-            "the same small spiky-haired kid adventurer Nib recoiling "
-            "backwards in pain, eyes squeezed shut, arms flailing, a few "
-            "little shock marks around his head"
+            "the character recoiling backwards in pain, eyes squeezed shut, "
+            "arms flailing, a few little shock marks around his head"
         ),
+        reference="characters/nib_idle",
     ),
 ]
 
@@ -289,6 +295,16 @@ UI = [
             "hand-drawn border and a completely blank interior"
         ),
         size=WIDE_SIZE,
+    ),
+    Asset(
+        key="ui/menu_panel",
+        subject=(
+            "an empty tall upright rectangular notebook panel filling almost "
+            "the whole frame, drawn as a single thick wobbly hand-drawn "
+            "rectangle border with a completely blank interior, no speech "
+            "tail, no pointer, no spiral binding, no lines inside"
+        ),
+        size=TALL_SIZE,
     ),
     Asset(key="ui/joystick_base", subject="a simple hollow circle ring with a thick wobbly hand-drawn outline"),
     Asset(key="ui/joystick_knob", subject="a small solid filled circle with a thick wobbly hand-drawn outline"),

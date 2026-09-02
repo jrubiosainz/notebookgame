@@ -19,8 +19,36 @@ class PanelOverlay: SKNode {
 
     private var rows: [RowSpec] = []
     private var page = 0
-    private let rowsPerPage = 6
-    private let rowHeight: CGFloat = 58
+    private let rowHeight: CGFloat = 54
+
+    /// Proportions of the generated `ui/menu_panel` artwork: its width over its
+    /// height, and how far in from each edge the drawn border stops. Anything
+    /// inside that inset is guaranteed to be blank paper.
+    private static let panelAspect: CGFloat = 0.659
+    private static let panelInset: CGFloat = 0.09
+    /// How much taller than its natural shape the panel may be pulled. A wobbly
+    /// ink rectangle survives a nudge; it does not survive being squashed into a
+    /// completely different shape.
+    private static let maxStretch: CGFloat = 1.3
+
+    /// Vertical bands reserved above and below the scrolling list.
+    private let titleBand: CGFloat = 46
+    private let closeBand: CGFloat = 54
+    private let pagerBand: CGFloat = 48
+    private var hasTabs = false
+    private var tabBand: CGFloat { hasTabs ? 58 : 10 }
+
+    /// Blank paper the list may draw on.
+    private var contentTop: CGFloat { panelSize.height / 2 - inset.height - titleBand - tabBand }
+    private var contentBottom: CGFloat { -panelSize.height / 2 + inset.height + closeBand + pagerBand }
+    private var contentWidth: CGFloat { panelSize.width - inset.width * 2 - 16 }
+    private var inset: CGSize {
+        CGSize(width: panelSize.width * PanelOverlay.panelInset,
+               height: panelSize.height * PanelOverlay.panelInset)
+    }
+    private var rowsPerPage: Int {
+        max(1, Int((contentTop - contentBottom) / rowHeight))
+    }
 
     /// One line of a list: a label, an optional right-hand value, and an action.
     struct RowSpec {
@@ -31,10 +59,21 @@ class PanelOverlay: SKNode {
     }
 
     init(size sceneSize: CGSize, title: String, onClose: @escaping () -> Void) {
-        self.panelSize = CGSize(width: min(sceneSize.width - 40, 640),
-                                height: min(sceneSize.height - 120, 720))
+        let maxWidth = min(sceneSize.width - 40, 560)
+        let maxHeight = min(sceneSize.height - 110, 900)
+        var width = maxWidth
+        var height = width / PanelOverlay.panelAspect
+        if height > maxHeight {
+            // Too tall for this screen: shrink, but keep the drawing's shape.
+            height = maxHeight
+            width = min(width, height * PanelOverlay.panelAspect)
+        } else {
+            // Room to spare: use it, within what the artwork tolerates.
+            height = min(maxHeight, height * PanelOverlay.maxStretch)
+        }
+        self.panelSize = CGSize(width: width, height: height)
         self.onClose = onClose
-        self.titleLabel = Paper.label(title, size: 30)
+        self.titleLabel = Paper.label(title, size: 28)
         super.init()
 
         let dimmer = TouchBlocker(color: UIColor(white: 0.1, alpha: 0.35), size: sceneSize)
@@ -42,12 +81,12 @@ class PanelOverlay: SKNode {
         dimmer.zPosition = 0
         addChild(dimmer)
 
-        let sheet = SKSpriteNode(texture: Art.texture("dialogue_box", in: "ui"))
+        let sheet = SKSpriteNode(texture: Art.texture("menu_panel", in: "ui"))
         sheet.size = panelSize
         sheet.zPosition = 1
         addChild(sheet)
 
-        titleLabel.position = CGPoint(x: 0, y: panelSize.height / 2 - 54)
+        titleLabel.position = CGPoint(x: 0, y: panelSize.height / 2 - inset.height - titleBand / 2)
         titleLabel.zPosition = 3
         addChild(titleLabel)
 
@@ -58,9 +97,9 @@ class PanelOverlay: SKNode {
         addChild(footerNode)
 
         let close = PaperButton(title: "CLOSE",
-                                size: CGSize(width: 148, height: 58),
+                                size: CGSize(width: min(160, contentWidth), height: 50),
                                 fontSize: 20) { onClose() }
-        close.position = CGPoint(x: 0, y: -panelSize.height / 2 + 46)
+        close.position = CGPoint(x: 0, y: -panelSize.height / 2 + inset.height + closeBand / 2)
         close.zPosition = 4
         addChild(close)
 
@@ -80,22 +119,31 @@ class PanelOverlay: SKNode {
     /// Adds a strip of tab buttons just under the title.
     func setTabs(_ tabs: [(String, () -> Void)], selected: Int) {
         footerNode.removeAllChildren()
+        hasTabs = !tabs.isEmpty
         guard !tabs.isEmpty else { return }
 
-        let width = min((panelSize.width - 60) / CGFloat(tabs.count), 180)
-        let total = width * CGFloat(tabs.count) + 10 * CGFloat(tabs.count - 1)
+        let gap: CGFloat = 8
+        // Tabs may use the full paper width; only the list keeps a side margin.
+        let band = panelSize.width - inset.width * 2
+        let available = band - gap * CGFloat(tabs.count - 1)
+        let width = min(available / CGFloat(tabs.count), 170)
+        let total = width * CGFloat(tabs.count) + gap * CGFloat(tabs.count - 1)
+        let y = panelSize.height / 2 - inset.height - titleBand - tabBand / 2
 
         for (index, tab) in tabs.enumerated() {
             let button = PaperButton(title: tab.0,
-                                     size: CGSize(width: width, height: 50),
-                                     fontSize: 18,
+                                     size: CGSize(width: width, height: 46),
+                                     fontSize: 15,
                                      action: tab.1)
             button.position = CGPoint(
-                x: -total / 2 + width / 2 + CGFloat(index) * (width + 10),
-                y: panelSize.height / 2 - 108)
+                x: -total / 2 + width / 2 + CGFloat(index) * (width + gap),
+                y: y)
             button.alpha = index == selected ? 1.0 : 0.5
             footerNode.addChild(button)
         }
+
+        // The list starts below the tabs, so its geometry just changed.
+        renderRows()
     }
 
     /// Renders a list, paging automatically when it is too long to fit.
@@ -108,76 +156,96 @@ class PanelOverlay: SKNode {
     private func renderRows() {
         contentNode.removeAllChildren()
 
-        let pageCount = max(1, Int(ceil(Double(rows.count) / Double(rowsPerPage))))
+        let perPage = rowsPerPage
+        let pageCount = max(1, Int(ceil(Double(rows.count) / Double(perPage))))
         page = min(page, pageCount - 1)
 
-        let start = page * rowsPerPage
-        let slice = Array(rows.dropFirst(start).prefix(rowsPerPage))
-        let topY = panelSize.height / 2 - 158
+        let start = page * perPage
+        let slice = Array(rows.dropFirst(start).prefix(perPage))
+        let topY = contentTop - rowHeight / 2
 
         if slice.isEmpty {
             let empty = Paper.label("Nothing here yet.", size: 20, color: Paper.softInk)
-            empty.position = CGPoint(x: 0, y: topY - rowHeight)
+            empty.position = CGPoint(x: 0, y: topY)
             contentNode.addChild(empty)
         }
 
         for (index, row) in slice.enumerated() {
             let y = topY - CGFloat(index) * rowHeight
-            let node = makeRow(row, width: panelSize.width - 76)
+            let node = makeRow(row, width: contentWidth)
             node.position = CGPoint(x: 0, y: y)
             contentNode.addChild(node)
         }
 
         guard pageCount > 1 else { return }
 
-        let previous = PaperButton(title: "‹", size: CGSize(width: 62, height: 52), fontSize: 26) {
+        let pagerY = -panelSize.height / 2 + inset.height + closeBand + pagerBand / 2
+
+        let previous = PaperButton(title: "‹", size: CGSize(width: 58, height: 44), fontSize: 24) {
             [weak self] in
             guard let self else { return }
             self.page = max(0, self.page - 1)
             self.renderRows()
         }
-        previous.position = CGPoint(x: -80, y: -panelSize.height / 2 + 112)
+        previous.position = CGPoint(x: -76, y: pagerY)
         previous.setEnabled(page > 0)
         contentNode.addChild(previous)
 
         let indicator = Paper.label("\(page + 1)/\(pageCount)", size: 18, color: Paper.softInk)
-        indicator.position = CGPoint(x: 0, y: -panelSize.height / 2 + 112)
+        indicator.position = CGPoint(x: 0, y: pagerY)
         contentNode.addChild(indicator)
 
-        let next = PaperButton(title: "›", size: CGSize(width: 62, height: 52), fontSize: 26) {
+        let next = PaperButton(title: "›", size: CGSize(width: 58, height: 44), fontSize: 24) {
             [weak self] in
             guard let self else { return }
             self.page = min(pageCount - 1, self.page + 1)
             self.renderRows()
         }
-        next.position = CGPoint(x: 80, y: -panelSize.height / 2 + 112)
+        next.position = CGPoint(x: 76, y: pagerY)
         next.setEnabled(page < pageCount - 1)
         contentNode.addChild(next)
     }
 
     private func makeRow(_ row: RowSpec, width: CGFloat) -> SKNode {
         let container = SKNode()
+        let buttonHeight = rowHeight - 8
+        let sideInset: CGFloat = 14
 
+        // The row is a ruled line with text on it, not a slab: the button art is
+        // drawn in perspective and cannot be stretched this wide without its
+        // borders running through the label.
         let button = PaperButton(title: "",
-                                 size: CGSize(width: width, height: rowHeight - 8),
-                                 fontSize: 1) {
+                                 size: CGSize(width: width, height: buttonHeight),
+                                 fontSize: 1,
+                                 showsBackground: false) {
             row.action?()
         }
         button.setEnabled(row.enabled && row.action != nil)
-        button.alpha = row.action == nil ? 0.0 : (row.enabled ? 1.0 : 0.35)
         container.addChild(button)
 
-        let title = Paper.label(row.title, size: 20)
+        if row.action != nil {
+            let rule = Paper.rule(width: width)
+            rule.position = CGPoint(x: 0, y: -buttonHeight / 2)
+            rule.alpha = row.enabled ? 0.9 : 0.35
+            rule.zPosition = 4
+            container.addChild(rule)
+        }
+
+        let detailWidth: CGFloat = row.detail.isEmpty ? 0 : 84
+        let title = Paper.label(row.title, size: 19)
         title.horizontalAlignmentMode = .left
-        title.position = CGPoint(x: -width / 2 + 20, y: 0)
+        title.numberOfLines = 1
+        title.preferredMaxLayoutWidth = width - sideInset * 2 - detailWidth
+        title.lineBreakMode = .byTruncatingTail
+        title.position = CGPoint(x: -width / 2 + sideInset, y: 0)
         title.zPosition = 5
         title.alpha = row.enabled ? 1.0 : 0.45
         container.addChild(title)
 
         if !row.detail.isEmpty {
-            let detail = Paper.label(row.detail, size: 18, color: Paper.softInk)
+            let detail = Paper.label(row.detail, size: 17, color: Paper.softInk)
             detail.horizontalAlignmentMode = .right
-            detail.position = CGPoint(x: width / 2 - 20, y: 0)
+            detail.position = CGPoint(x: width / 2 - sideInset, y: 0)
             detail.zPosition = 5
             detail.alpha = row.enabled ? 1.0 : 0.45
             container.addChild(detail)

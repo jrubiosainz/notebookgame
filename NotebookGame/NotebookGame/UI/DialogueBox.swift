@@ -17,24 +17,40 @@ final class DialogueBox: SKNode {
 
     private(set) var isPresenting = false
 
+    /// Proportions taken from the generated `ui/dialogue_box` artwork: the
+    /// sprite's own shape, and the slice of blank paper inside the leaning
+    /// bubble that text can safely sit on.
+    private static let artAspect: CGFloat = 1.732
+    private static let paperCentre = CGPoint(x: 0.032, y: 0.056)
+    private static let paperWidth: CGFloat = 0.66
+    private static let paperHeight: CGFloat = 0.28
+    /// A spot inside the paper, below the text block, clear of the ink border.
+    private static let promptSpot = CGPoint(x: 0.10, y: -0.10)
+
     init(width: CGFloat) {
-        boxSize = CGSize(width: width, height: width * 0.30)
+        // Drawn at 1.73:1. Anything else stretches the speech tail and the
+        // hand-drawn corners, so the sprite keeps the artwork's own shape.
+        boxSize = CGSize(width: width, height: width / DialogueBox.artAspect)
         super.init()
 
         panel.size = boxSize
         panel.zPosition = 0
         addChild(panel)
 
-        text.fontSize = min(23, boxSize.width * 0.042)
+        text.fontSize = min(23, boxSize.height * DialogueBox.paperHeight / 3.6)
         text.fontColor = Paper.ink
         text.numberOfLines = 3
-        text.preferredMaxLayoutWidth = boxSize.width * 0.84
+        text.lineBreakMode = .byTruncatingTail
+        text.preferredMaxLayoutWidth = boxSize.width * DialogueBox.paperWidth
         text.horizontalAlignmentMode = .center
         text.verticalAlignmentMode = .center
+        text.position = CGPoint(x: boxSize.width * DialogueBox.paperCentre.x,
+                                y: boxSize.height * DialogueBox.paperCentre.y)
         text.zPosition = 1
         addChild(text)
 
-        prompt.position = CGPoint(x: boxSize.width * 0.40, y: -boxSize.height * 0.33)
+        prompt.position = CGPoint(x: boxSize.width * DialogueBox.promptSpot.x,
+                                  y: boxSize.height * DialogueBox.promptSpot.y)
         prompt.zPosition = 1
         addChild(prompt)
 

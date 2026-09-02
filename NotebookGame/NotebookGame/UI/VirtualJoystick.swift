@@ -106,10 +106,15 @@ final class PaperButton: SKNode {
 
     var size: CGSize { background.size }
 
-    init(title: String, size: CGSize, fontSize: CGFloat = 22, action: @escaping () -> Void) {
+    init(title: String, size: CGSize, fontSize: CGFloat = 22,
+         showsBackground: Bool = true, action: @escaping () -> Void) {
         self.action = action
         background = SKSpriteNode(texture: Art.texture("button", in: "ui"))
         background.size = size
+        // A list row is far wider than the drawing's 1.6:1 shape, and stretching
+        // it that far leaves the text nowhere clean to sit. Such rows keep the
+        // sprite purely as a hit area and draw their own rule instead.
+        background.alpha = showsBackground ? 1.0 : 0.0
         label = Paper.label(title, size: fontSize)
 
         super.init()
@@ -118,10 +123,18 @@ final class PaperButton: SKNode {
         addChild(background)
         label.zPosition = 1
         label.verticalAlignmentMode = .center
+        // The button is drawn in perspective: the flat readable face sits a
+        // little above the sprite's own centre, with the extruded edge below.
+        label.position = CGPoint(x: 0, y: showsBackground ? size.height * PaperButton.faceOffset : 0)
         addChild(label)
 
         isUserInteractionEnabled = true
     }
+
+    /// Distance from the sprite centre up to the centre of the paper face,
+    /// measured from the generated artwork as a fraction of its height. A label
+    /// box of 0.70w x 0.24h at this offset lands on 100% blank paper.
+    static let faceOffset: CGFloat = 0.08
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
