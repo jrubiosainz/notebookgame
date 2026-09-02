@@ -183,18 +183,18 @@ enum MapCatalog {
         encounterPool: ["scribble", "ink_slime", "scribble", "eraser_bug"],
         encounterRate: 0.075,
         npcs: [
-            NPCDef(id: "pyramid", spriteName: "mustache_pyramid", x: 4, y: 13, scale: 2.6,
+            NPCDef(id: "inkwell", spriteName: "old_inkwell", x: 4, y: 13, scale: 2.6,
                    lines: [
-                    "The pyramid's mustache twitches.",
+                    "The old inkwell sloshes awake.",
                     "\"Welcome to the page, little doodle.\"",
                     "\"A Smudge is spreading. It eats everything we draw.\"",
-                    "\"Head east. And do keep your pencil sharp.\""
+                    "\"Take some of me with you. Head east.\""
                    ]),
             NPCDef(id: "camp", spriteName: "campfire", spriteFolder: "props", x: 3, y: 11, scale: 1.2,
                    lines: ["You warm your ink by the fire.", "Health and ink fully restored."],
                    restores: true),
-            NPCDef(id: "vendor", spriteName: "yoinks_cart", x: 21, y: 5, scale: 2.0,
-                   lines: ["\"YOINKS! Best supplies on the page.\"", "\"Have a browse.\""],
+            NPCDef(id: "vendor", spriteName: "pencil_case_stall", x: 21, y: 5, scale: 2.0,
+                   lines: ["\"Everything a doodle needs, all zipped up.\"", "\"Have a browse.\""],
                    opensShop: true),
             NPCDef(id: "elder", spriteName: "bench_elder", x: 20, y: 4, scale: 1.5,
                    lines: [

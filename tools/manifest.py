@@ -158,19 +158,22 @@ ENEMIES = [
 # --------------------------------------------------------------------------
 NPCS = [
     Asset(
-        key="npcs/mustache_pyramid",
+        key="npcs/old_inkwell",
         subject=(
-            "a big stone pyramid tent that is alive: it has two dot eyes near "
-            "the top, an enormous bushy curly handlebar mustache, and a dark "
-            "triangular doorway opening at its base like a mouth"
+            "a big round old glass inkwell bottle with a wide heavy base and a "
+            "cork stopper sitting on top like a little hat, alive and friendly, "
+            "with a long feather quill pen leaning in the neck and thick ink "
+            "swirling inside the glass"
         ),
+        face=True,
     ),
     Asset(
-        key="npcs/yoinks_cart",
+        key="npcs/pencil_case_stall",
         subject=(
-            "a little wooden street vendor cart on two spoked wheels with a "
-            "striped awning, small crates and jars of supplies on the counter, "
-            "a hanging sign above it"
+            "a big zippered pencil case standing upright and opened wide like a "
+            "market stall, the unzipped front flap folded out above it as an "
+            "awning, pencils erasers and small supply jars neatly displayed "
+            "inside, a tiny blank hanging sign board above"
         ),
     ),
     Asset(

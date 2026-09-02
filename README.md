@@ -28,7 +28,7 @@ the things that live in the ink, and scrub the page clean.
 - Top-down movement with a floating virtual joystick
 - Random encounters, turn-based battles, five unlockable skills
 - Ink as the magic resource, coins as currency, hearts for health
-- Items, two equipment slots, a vendor cart, a camp that heals you
+- Items, two equipment slots, a pencil-case shop stall, a camp that heals you
 - A save file that survives being backgrounded, and a boss at the end
 
 **Maps:** Pencil Plains → Eraser Desert → Inkwell Woods.

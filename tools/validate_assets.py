@@ -24,7 +24,7 @@ SWIFT_ROOT = ROOT / "NotebookGame" / "NotebookGame"
 TEXTURE = re.compile(r'Art\.texture\(\s*"([^"]+)"\s*,\s*in:\s*"([^"]+)"')
 # Art.frames(in: "characters/nib/walk_down", fallback: "nib_idle", ...)
 FRAMES = re.compile(r'Art\.frames\(\s*in:\s*"([^"]+)"')
-# Data-driven names, e.g. spriteName: "scribble" or sprite: "yoinks_cart"
+# Data-driven names, e.g. spriteName: "scribble" or sprite: "pencil_case_stall"
 LITERAL = re.compile(r'"([A-Za-z0-9_]+)"')
 
 # Generated on purpose, but consumed by the toolchain rather than by the game.
