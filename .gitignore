@@ -1,0 +1,28 @@
+# Secrets - never commit these
+.env
+.env.local
+
+# Raw generation cache (large, reproducible from tools/manifest.py)
+.assetcache/
+assets/.cache.json
+
+# Generator output log
+gen.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Xcode
+build/
+DerivedData/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+.swiftpm/
+
+# macOS
+.DS_Store
