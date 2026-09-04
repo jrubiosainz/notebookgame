@@ -272,6 +272,16 @@ struct AdventureValidation {
         wall.save.facing = PagePoint(x: 0, y: -1)
         expect(wall.erase().success && wall.save.builds.isEmpty, "Facing wall can be recovered to avoid trapping player")
 
+        let footprint = fixture(x: 10.4, y: 5.5)
+        footprint.save.colors = [.brown]
+        footprint.save.wood = 8
+        let beforePlacement = footprint.save
+        expect(!footprint.build(.wall, at: PagePoint(x: 11, y: 6)).success,
+               "Diagonal wall cannot overlap the player's collision footprint")
+        expect(footprint.save == beforePlacement, "Overlapping placement spends no resources")
+        expect(footprint.canStand(x: footprint.save.x, y: footprint.save.y), "Failed placement leaves player mobile")
+        expect(footprint.move(dx: -0.1, dy: 0), "Player can move away from rejected wall")
+
         let eraser = fixture()
         eraser.save.creatures = [InkCreature(id: "test", pageID: "margin", x: 11, y: 6, remaining: 1),
                                 InkCreature(id: "remote", pageID: "garden", x: 10, y: 6, remaining: 1)]

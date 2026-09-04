@@ -108,13 +108,10 @@ final class AdventureEngine {
     func canStand(x: Double, y: Double) -> Bool {
         guard x.isFinite, y.isFinite, x >= 0.5, y >= 0.5,
               x <= Double(page.width) - 1.5, y <= Double(page.height) - 1.5 else { return false }
-        for ox in [-0.22, 0.22] {
-            for oy in [-0.22, 0.22] {
-                let tile = PagePoint(x: Int((x + ox).rounded()), y: Int((y + oy).rounded()))
-                if page.blocked.contains(tile) || hasBuild(.wall, at: tile) { return false }
-                if inkTiles.contains(tile), !hasBuild(.path, at: tile), !hasBuild(.shelter, at: tile) {
-                    return false
-                }
+        for tile in bodyTiles(x: x, y: y) {
+            if page.blocked.contains(tile) || hasBuild(.wall, at: tile) { return false }
+            if inkTiles.contains(tile), !hasBuild(.path, at: tile), !hasBuild(.shelter, at: tile) {
+                return false
             }
         }
         return true
@@ -206,7 +203,7 @@ final class AdventureEngine {
             return event("El mundo sigue escribiendose", [
                 "Las seis memorias caen al tintero. No devuelven a la autora: devuelven al mundo su voz.",
                 "Tinta dibuja una puerta abierta. Al otro lado no hay final, sino espacio para vivir.",
-                "La noche ya no avanza. Tus refugios, colores y caminos permanecen. Sigue explorando."
+                "La tinta ya no avanza. Tus refugios, colores y caminos permanecen. Sigue explorando."
             ])
         case .rock:
             return event("Una nota al margen", ["Camina cerca y borra la tinta antes de cruzar.",
@@ -481,6 +478,9 @@ final class AdventureEngine {
         }
         if kind != .path {
             guard distance(point) >= 0.75 else { return "No puedes construir encima de ti." }
+            if kind == .wall, bodyTiles(x: save.x, y: save.y).contains(point) {
+                return "Alejate un poco: la pared tocaria tus pies."
+            }
             guard !inkTiles.contains(point) else { return "Borra primero la tinta o coloca un camino." }
             guard !page.objects.contains(where: { $0.point == point }),
                   hypot(Double(point.x - page.spawn.x), Double(point.y - page.spawn.y)) > 1.5 else {
@@ -528,6 +528,13 @@ final class AdventureEngine {
 
     private func hasBuild(_ kind: BuildKind, at point: PagePoint) -> Bool {
         save.builds.contains { $0.pageID == save.pageID && $0.point == point && $0.kind == kind }
+    }
+    private func bodyTiles(x: Double, y: Double) -> Set<PagePoint> {
+        Set([-0.22, 0.22].flatMap { ox in
+            [-0.22, 0.22].map { oy in
+                PagePoint(x: Int((x + ox).rounded()), y: Int((y + oy).rounded()))
+            }
+        })
     }
     private func inside(_ point: PagePoint) -> Bool {
         point.x >= 1 && point.y >= 1 && point.x < page.width - 1 && point.y < page.height - 1

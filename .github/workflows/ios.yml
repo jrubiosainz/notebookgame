@@ -1,0 +1,72 @@
+name: iPhone adventure
+
+on:
+  push:
+    paths:
+      - "NotebookGame/**"
+      - "assets/**"
+      - "tools/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iphone-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  adventure:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise the complete campaign
+        run: |
+          swiftc -swift-version 5 \
+            NotebookGame/NotebookGame/Adventure/AdventureModel.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureCatalog.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureEngine.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureStore.swift \
+            tools/validate_adventure.swift -o "$RUNNER_TEMP/validate-adventure"
+          "$RUNNER_TEMP/validate-adventure"
+          python3 tools/validate_assets.py
+          python3 tools/validate_maps.py
+      - name: Compile iPhone app
+        run: |
+          xcodebuild -quiet -project NotebookGame/NotebookGame.xcodeproj \
+            -scheme NotebookGame -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/NotebookBuild" \
+            CODE_SIGNING_ALLOWED=NO build
+          xcodebuild -quiet -project NotebookGame/NotebookGame.xcodeproj \
+            -scheme NotebookGame -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/NotebookRelease" \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Capture iPhone simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for group in d["devices"].values() for v in group if "iPhone" in v["name"]))')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
+          xcrun simctl install "$DEVICE" "$RUNNER_TEMP/NotebookBuild/Build/Products/Debug-iphonesimulator/NotebookGame.app"
+          mkdir -p "$RUNNER_TEMP/iphone-captures"
+          for SCENE in cover prologue first-pigment brown-awakening camp atlas violet-seam workbench; do
+            xcrun simctl launch "$DEVICE" com.jrubiosainz.notebookgame -notebook-capture "$SCENE"
+            sleep 4
+            xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/iphone-captures/$SCENE.png"
+            xcrun simctl terminate "$DEVICE" com.jrubiosainz.notebookgame
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iphone-screenshots
+          path: ${{ runner.temp }}/iphone-captures
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notebook-iphonesimulator
+          path: ${{ runner.temp }}/NotebookBuild/Build/Products/Debug-iphonesimulator/NotebookGame.app
+          if-no-files-found: error

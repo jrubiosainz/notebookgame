@@ -1,10 +1,13 @@
-# Notebook Quest
+# Notebook Quest: El desborde
 
-A hand-drawn black-and-white RPG for iOS, set inside the margins of a school
-notebook. Every rock, tree and monster is a doodle with a face, and **every
-single visual asset in the game is generated with Azure OpenAI `gpt-image-2`**
-from one shared style contract, so the whole game looks like it was drawn by one
-person in one sitting.
+A hand-drawn survival adventure for iPhone, inside a notebook whose ink has
+escaped its inkwell. Discover pigment, physically paint the world back into
+existence, and follow six memories down through the pages.
+
+The original black-and-white illustrations, generated with Azure OpenAI
+`gpt-image-2`, are preserved. The adventure adds runtime watercolor washes,
+paper constructions, eraser crumbs and warm firelight rather than replacing
+the original art with a different style.
 
 ---
 
@@ -21,17 +24,58 @@ person in one sitting.
 
 ## The game
 
-You are **Nib**, a doodle in the margin of somebody's notebook. **The Big
-Smudge** is bleeding across the page and erasing everyone. Walk three maps, fight
-the things that live in the ink, and scrub the page clean.
+You are **Nib**. The author has closed the notebook, and the ink no longer
+remembers where its lines end. A four-part illustrated opening introduces the
+mystery. NPCs guide you through six connected pages across three depths:
 
-- Top-down movement with a floating virtual joystick
-- Random encounters, turn-based battles, five unlockable skills
-- Ink as the magic resource, coins as currency, hearts for health
-- Items, two equipment slots, a pencil-case shop stall, a camp that heals you
-- A save file that survives being backgrounded, and a boss at the end
+| Page | Depth | Discovery |
+| --- | --- | --- |
+| El margen despierto | Surface | Brown awakens chests and wooden passages. |
+| Jardin de grafito | Surface | Green awakens trees and food; yellow holds light. |
+| El reves del papel | -1 | Red + yellow unlock a fire that repels ink. |
+| Archivo sumergido | -1 | Blue restores bridges and a shortcut to the margin. |
+| La costura violeta | -2 | Violet and an improved eraser unlock the origin. |
+| Corazon del tintero | -2 | Six recovered memories restore the inkwell. |
 
-**Maps:** Pencil Plains → Eraser Desert → Inkwell Woods.
+**Discovering a color does not automatically paint anything.** Approach an
+unfinished object, paint it, then interact again to use it. Paper scraps, people,
+pigment and written notes remain usable without color. Chests, plants, memories,
+the inkwell and passages require their own pigment.
+
+The adventure is continuous, not the demo's random turn-based battles. Nib
+swings an **eraser**: creatures progressively lose opacity and disappear into
+recoverable scraps. Memories improve its reach. Ink spreads at night, retreats
+in daylight, and can be erased or contained with walls.
+
+Daylight lasts 160 seconds and night 80. Food, warmth and the integrity of Nib's
+outline matter. Collect renewable supplies, build paper paths over ink, wooden
+walls, campfires and shelters. Fires consume fuel; resting nearby feeds them
+wood. Shelters establish persistent return points. Getting smudged out costs
+some supplies, not your colors, memories or buildings.
+
+The atlas records visited pages and their return routes. NPC conversations
+unlock progression; painted bridges and eraser-gated tunnels make backtracking
+useful. The campaign has an ending and continued building/exploration afterward.
+
+### iPhone controls
+
+Use the lower-left floating stick to move and the contextual dark button to
+discover, paint, gather, talk or cross a page. **BORRAR** sweeps the nearby area.
+**CONSTRUIR** opens recipes: choose one, face a tile, then **COLOCAR**. A green
+outline means the placement is valid; paper paths and walls stay selected for
+repeated placement. Reopen the workbench to cancel. **COMER**, **DESCANSAR** and
+**DIARIO** are always available. Reading and menus pause survival.
+
+The new adventure saves atomically every five active seconds, after actions,
+and when backgrounded. It uses `notebook-adventure-v2.json`; the original demo's
+`notebookgame.save.json` is left untouched. Corrupt or incompatible files are
+reported, not silently replaced. New game requires confirmation.
+
+### Screenshots
+
+[Screenshots](docs/screenshots/) show the actual SpriteKit renderer, not concept
+art. Development captures use explicit, reproducible gameplay fixtures, including
+a built night camp; they never overwrite a player's save.
 
 ---
 
@@ -159,25 +203,69 @@ NotebookGame/NotebookGame/
   Core/      GameState (save + derived stats), Art loader, Paper theme, Haptics
   Data/      Bestiary, items, equipment, and the three maps
   Models/    Stats, progression curve, items, save file
-  Scenes/    Title, Overworld, Battle
+  Scenes/    Original demo scenes, retained for reference
   Systems/   Tile map + collision, battle maths, player node
   UI/        Joystick, buttons, dialogue, HUD, menu and shop panels
+  Adventure/ New campaign model, catalog, simulation, save store and SpriteKit scenes
 ```
 
-`Systems/BattleEngine.swift` is deliberately free of SpriteKit so the combat
-maths can be reasoned about (and tested) on its own.
+`AdventureModel`, `AdventureCatalog`, `AdventureEngine` and `AdventureStore` are
+pure Foundation. Simulation runs in fixed steps, saves its clocks, and is
+independent of drawing, frame rate and touch input.
+
+### Adventure regression suite and native preview
+
+Run from the repository root with Apple's Swift command-line tools:
+
+```bash
+swiftc -swift-version 5 \
+  NotebookGame/NotebookGame/Adventure/AdventureModel.swift \
+  NotebookGame/NotebookGame/Adventure/AdventureCatalog.swift \
+  NotebookGame/NotebookGame/Adventure/AdventureEngine.swift \
+  NotebookGame/NotebookGame/Adventure/AdventureStore.swift \
+  tools/validate_adventure.swift -o /tmp/validate-adventure
+/tmp/validate-adventure
+```
+
+The checks walk the complete campaign with real movement and survival ticks,
+including both return loops. They also cover paint-before-use, duplicate rewards,
+map reachability, ink crossings, fire fuel/protection, walls, erasure, death,
+resource renewal, frame partitioning, save round-trips and corruption handling.
+
+The **same** SpriteKit scene can run on macOS as a developer preview without
+Xcode or an iOS runtime:
+
+```bash
+swiftc -swift-version 5 -D DEBUG -O -framework Cocoa -framework SpriteKit \
+  NotebookGame/NotebookGame/Adventure/*.swift tools/preview_adventure.swift \
+  -o /tmp/NotebookPreview
+/tmp/NotebookPreview
+/tmp/NotebookPreview --capture /tmp/notebook-captures
+/tmp/NotebookPreview --compact --capture /tmp/notebook-compact
+```
+
+WASD/arrows move; E interacts; Space erases; C builds; J opens the diary.
+`--compact` exercises a 375 x 667 point viewport. Captures are rendered at Retina
+resolution. This is a development preview, **not a Steam release**. A desktop
+edition still needs controller support, desktop layouts, packaging and platform
+integration; the portable simulation and shared renderer provide a starting point.
+
+`.github/workflows/ios.yml` builds Debug for iOS Simulator and unsigned Release
+for iOS on GitHub's macOS runner, runs the regression suite, launches an iPhone
+simulator and uploads screenshots plus the simulator app. Debug-only
+`-notebook-capture <scene>` fixtures are excluded from Release.
 
 ---
 
-## Status
+## Original demo milestone
 
-**Version 1.0 (build 1) is compiled and device-tested.** The checked-in Xcode
+**Version 1.0 (build 1) was compiled and device-tested.** The original Xcode
 project builds successfully in Release for both the iOS Simulator and a physical
 iPhone, with no third-party dependencies. On 2 September 2026 it was signed,
 installed and launched on a physical iPhone 13 Pro Max; no crash report was
 produced.
 
-The title screen and generated artwork were inspected in the simulator. The asset
+The original title screen and generated artwork were inspected in the simulator. The asset
 validator cross-checks every texture referenced by the 20 Swift source files, and
 the map validator confirms the dimensions, tile vocabulary and reachability of
 all three maps. The app icon is a 1024×1024 opaque GPT Image 2 emblem of Nib

@@ -1,10 +1,9 @@
 import SwiftUI
 import SpriteKit
 
-/// Hosts the SpriteKit game and keeps the save file honest when the app is
-/// backgrounded.
+/// Hosts SpriteKit. The active adventure scene owns lifecycle persistence, since
+/// SpriteKit transitions replace the presented scene without changing this state.
 struct RootView: View {
-    @Environment(\.scenePhase) private var scenePhase
 
     /// Built once and kept. Recreating it on every layout pass would restart the
     /// game whenever the view is measured again.
@@ -24,13 +23,6 @@ struct RootView: View {
                 scene = makeScene(size: geometry.size)
             }
         }
-        .onChange(of: scenePhase) { _, phase in
-            // Leaving the app is the most likely moment to lose progress, so
-            // flush the save whenever we stop being active.
-            if phase != .active {
-                GameState.shared.persist()
-            }
-        }
     }
 
     private func makeScene(size: CGSize) -> SKScene {
@@ -40,7 +32,19 @@ struct RootView: View {
             ? size
             : UIScreen.main.bounds.size
 
-        let scene = TitleScene(size: resolved)
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-notebook-capture"),
+           index + 1 < arguments.count, arguments[index + 1] != "cover" {
+            let name = arguments[index + 1]
+            let scene = AdventureScene(size: resolved,
+                                       engine: AdventureEngine(save: AdventurePreviewFixtures.save(for: name)))
+            scene.savesEnabled = false
+            scene.capturePanel = name == "atlas" ? "journal" : name == "workbench" ? "craft" : nil
+            return scene
+        }
+        #endif
+        let scene = AdventureCoverScene(size: resolved)
         scene.scaleMode = .resizeFill
         return scene
     }

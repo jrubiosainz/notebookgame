@@ -78,6 +78,19 @@ and edge-to-edge so the ground tessellates.
 
 ## Changing the look
 
+### Adventure color is gameplay
+
+The source illustrations remain monochrome. `Adventure/NotebookVisuals.swift`
+supplies the six consistent pigment colors; `AdventureWorldNode` applies a
+translucent color wash only after the simulation records that the object was
+painted. Unfinished objects are pale and carry a pigment marker. Their familiar
+faces, outlines and hatching are preserved.
+
+Ruled warm paper, uneven stains, folded paths and a pink eraser are drawn at
+runtime. Night uses a dark mask with soft cutouts around burning campfires and
+shelters. This intentional runtime color is not a reason to remove grayscale
+enforcement from the generation pipeline.
+
 ```bash
 # edit tools/style.py
 python tools/generate_assets.py --force
