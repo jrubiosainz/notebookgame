@@ -87,8 +87,9 @@ struct AdventureValidation {
         for page in AdventureCatalog.pages {
             let engine = fixture(page: page.id, x: Double(page.spawn.x), y: Double(page.spawn.y))
             expect(engine.canStand(x: engine.save.x, y: engine.save.y), "Safe spawn")
+            expect(page.blocked.count >= 20, "Each page has meaningful traversable geography")
             for object in page.objects {
-                expect(!page.blocked.contains(object.point), "Object not hidden in collision")
+                expect(!page.blocked.contains(object.point), "\(object.id) not hidden in collision")
                 expect(path(engine, to: object.point) != nil, "\(object.id) physically reachable")
                 expect(FileManager.default.fileExists(atPath: "assets/\(object.folder)/\(object.art).png"), "Existing art \(object.art)")
                 if let target = object.targetPage {
@@ -166,6 +167,7 @@ struct AdventureValidation {
         expect(!engine.interact("origin_inkwell").success, "Finale requires all six memories")
         use(engine, "memory_origin", twice: true)
         expect(engine.memoryCount == 6 && engine.save.eraserLevel == 3, "All memories and upgrades")
+        expect(engine.save.elapsed > 60 && engine.save.hunger < 100, "Full campaign walks run live survival simulation")
         let ending = use(engine, "origin_inkwell")
         expect(ending.lines.count >= 3 && engine.isCompleted && engine.save.endingSeen, "Finite narrative ending")
         expect(engine.save.visited.count == 6, "All pages visited by actual movement")
@@ -306,6 +308,12 @@ struct AdventureValidation {
         let new = night.save.creatures[0]
         expect(hypot(new.x - night.save.x, new.y - night.save.y) < hypot(old.x - night.save.x, old.y - night.save.y),
                "Night enemies pursue player")
+        let canal = fixture(page: "archive", x: 13, y: 7)
+        let crossing = PagePoint(x: 14, y: 7)
+        expect(canal.inkTiles.contains(crossing), "Archive has genuine ink canal")
+        expect(!canal.canStand(x: 14, y: 7), "Canal blocks unprepared direct crossing")
+        expect(canal.build(.path, at: crossing).success, "Scraps bridge the actual catalog canal")
+        expect(canal.move(dx: 1, dy: 0), "Built bridge permits actual canal crossing")
     }
 
     static func renewalAndPersistence() throws {

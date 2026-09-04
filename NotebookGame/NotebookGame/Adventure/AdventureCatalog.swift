@@ -131,21 +131,66 @@ enum AdventureCatalog {
             object("\(id)_chest", .chest, 18, 5, "Cofre del margen", .brown, "chest"),
             object("\(id)_rock", .rock, 3, 5, "Nota en piedra", nil, "rock_large")
         ]
-        // Broken perimeter patterns frame distinct pages without sealing their readable central paths.
-        let patterns: [[PagePoint]] = [
-            (3...8).map { PagePoint(x: $0, y: 3) },
-            (4...9).map { PagePoint(x: 19, y: $0) },
-            (3...8).map { PagePoint(x: $0, y: 20) },
-            (3...7).map { PagePoint(x: 2, y: $0 + 10) },
-            (13...18).map { PagePoint(x: $0, y: 21) },
-            (4...8).map { PagePoint(x: $0, y: 2) } + (14...18).map { PagePoint(x: $0, y: 2) }
-        ]
-        let blocked = Set(patterns[number - 1])
-        let sources = number.isMultiple(of: 2)
-            ? [PagePoint(x: 2, y: 21), PagePoint(x: 19, y: 2)]
-            : [PagePoint(x: 2, y: 2), PagePoint(x: 19, y: 21)]
+        let blocked: Set<PagePoint>
+        let sources: [PagePoint]
+        switch id {
+        case "margin":
+            // Two groves frame the safe central trail; the northern chest rewards a short detour.
+            blocked = Set(rect(3...5, 6...8) + rect(15...18, 20...21) + row(3, 5...8))
+            sources = [PagePoint(x: 2, y: 2), PagePoint(x: 19, y: 21)]
+            props += [object("margin_pine", .tree, 6, 7, "Pino del primer trazo", .green, "tree_pine")]
+        case "garden":
+            // Broken terraces make the player wind between harvesting beds.
+            blocked = Set(row(6, 4...17, gaps: [8, 9, 12, 13]) +
+                          row(15, 9...18, gaps: [12, 13, 16, 17]) + rect(3...4, 17...20))
+            sources = [PagePoint(x: 2, y: 21), PagePoint(x: 19, y: 2), PagePoint(x: 19, y: 15)]
+            props += [
+                object("garden_orchard", .tree, 6, 5, "Huerto de papel", .green, "tree_round"),
+                object("garden_bed", .berries, 15, 13, "Bayas del bancal", .green, "bush")
+            ]
+        case "reverse":
+            // Parallel folds form three chambers with generous staggered openings.
+            blocked = Set(column(8, 3...20, gaps: [8, 9, 10, 11, 14, 15]) +
+                          column(14, 4...21, gaps: [7, 8, 9, 12, 13, 16, 17]) + row(21, 3...7))
+            sources = [PagePoint(x: 3, y: 3), PagePoint(x: 19, y: 20), PagePoint(x: 12, y: 21)]
+            props += [object("reverse_stump", .scraps, 5, 18, "Retales entre pliegues", nil, "stump")]
+        case "archive":
+            // An ink canal cuts the eastern archive in two. Its central ford stays traversable;
+            // erasure and scrap bridges offer shorter crossings toward the blue memory.
+            blocked = Set(row(5, 3...11, gaps: [3, 6, 7]) + row(19, 3...11, gaps: [6, 7]) +
+                          column(18, 6...15, gaps: [8, 9, 12]) + rect(3...4, 3...4))
+            sources = (3...20).filter { ![10, 11, 12, 13].contains($0) }.map { PagePoint(x: 14, y: $0) }
+            props += [object("archive_cache", .scraps, 12, 7, "Cartas sueltas", nil, "stump")]
+        case "seam":
+            // Offset seams pinch into two thread-width corridors, then open around the seal.
+            blocked = Set(row(6, 3...18, gaps: [8, 9, 14, 15]) +
+                          row(13, 3...18, gaps: [6, 7, 9, 10, 11, 16, 17]) +
+                          row(20, 5...18, gaps: [9, 10, 15, 16]) + column(19, 7...12))
+            sources = [PagePoint(x: 3, y: 20), PagePoint(x: 18, y: 3), PagePoint(x: 18, y: 19)]
+            props += [object("seam_thread", .scraps, 8, 18, "Hilo de retales", nil, "stump")]
+        default:
+            // A broken amphitheatre surrounds the inkwell. Four doorways keep the finale open.
+            blocked = Set(row(5, 5...17, gaps: [10, 11, 12]) +
+                          row(20, 5...17, gaps: [10, 11, 12]) +
+                          column(5, 6...19, gaps: [10, 11, 12, 16]) +
+                          column(18, 6...19, gaps: [10, 11, 12, 16, 17, 18]))
+            sources = [PagePoint(x: 2, y: 3), PagePoint(x: 20, y: 3), PagePoint(x: 20, y: 21)]
+            props += [object("origin_last_tree", .tree, 8, 17, "El arbol de la autora", .green, "tree_pine")]
+        }
         return AdventurePage(id: id, name: name, subtitle: subtitle, number: number, depth: depth,
                              width: 22, height: 24, spawn: PagePoint(x: 10, y: 11),
                              objects: props, inkSources: sources, blocked: blocked, flavor: flavor)
+    }
+
+    private static func row(_ y: Int, _ xs: ClosedRange<Int>, gaps: Set<Int> = []) -> [PagePoint] {
+        xs.filter { !gaps.contains($0) }.map { PagePoint(x: $0, y: y) }
+    }
+
+    private static func column(_ x: Int, _ ys: ClosedRange<Int>, gaps: Set<Int> = []) -> [PagePoint] {
+        ys.filter { !gaps.contains($0) }.map { PagePoint(x: x, y: $0) }
+    }
+
+    private static func rect(_ xs: ClosedRange<Int>, _ ys: ClosedRange<Int>) -> [PagePoint] {
+        xs.flatMap { x in ys.map { PagePoint(x: x, y: $0) } }
     }
 }
