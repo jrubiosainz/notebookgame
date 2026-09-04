@@ -83,7 +83,7 @@ enum BuildKind: String, Codable, CaseIterable {
     }
 }
 
-struct PlacedBuild: Codable, Identifiable {
+struct PlacedBuild: Codable, Identifiable, Equatable {
     var id: String
     var pageID: String
     var point: PagePoint
@@ -91,7 +91,7 @@ struct PlacedBuild: Codable, Identifiable {
     var fuel: Double
 }
 
-struct InkCreature: Codable, Identifiable {
+struct InkCreature: Codable, Identifiable, Equatable {
     var id: String
     var pageID: String
     var x: Double
@@ -107,7 +107,7 @@ struct AdventureEvent {
     var success: Bool = true
 }
 
-struct AdventureSave: Codable {
+struct AdventureSave: Codable, Equatable {
     var version = 2
     var pageID = "margin"
     var x = 10.0
