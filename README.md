@@ -52,6 +52,8 @@ art family. The left-facing cycle mirrors the right; footsteps follow actual
 distance, and stopping preserves the facing direction. Painting and erasing
 have their own short body gestures, held-tool motion and effects. Tools are
 put away afterward: neither the idle character nor the cover has a floating eraser.
+The [animated pose preview](docs/screenshots/nib-motion.gif) shows the shared
+SpriteKit animator's walking, erasing and painting gestures.
 
 Daylight lasts 160 seconds and night 80. Food, warmth and the integrity of Nib's
 outline matter. Collect renewable supplies, build paper paths over ink, wooden
@@ -88,7 +90,7 @@ reported, not silently replaced. New game requires confirmation.
 
 [Nine iPhone screenshots](docs/screenshots/) show the actual game running in the
 iPhone 17 Pro simulator, not concept art. They were captured by
-[the iPhone workflow](https://github.com/jrubiosainz/notebookgame/actions/runs/33950749012).
+[the iPhone workflow](https://github.com/jrubiosainz/notebookgame/actions/runs/33959915583).
 Development captures use explicit, reproducible gameplay fixtures, including a
 built night camp; they never overwrite a player's save.
 
