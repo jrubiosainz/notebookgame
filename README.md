@@ -269,6 +269,13 @@ for iOS on GitHub's macOS runner, runs the regression suite, launches an iPhone
 simulator and uploads screenshots plus the simulator app. Debug-only
 `-notebook-capture <scene>` fixtures are excluded from Release.
 
+The workflow also publishes `notebook-iphoneos-unsigned`, a zipped Release app
+compiled for physical iPhones (not the simulator). It still requires local
+Apple Development signing and a provisioning profile that includes the target
+device before installation with `xcrun devicectl device install app`. Signing
+keys and provisioning profiles must stay on the developer's Mac, outside this
+repository and CI artifacts.
+
 ---
 
 ## Original demo milestone

@@ -46,6 +46,16 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/NotebookRelease" \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned device app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/NotebookRelease/Build/Products/Release-iphoneos/NotebookGame.app" \
+            "$RUNNER_TEMP/NotebookGame-iphoneos.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notebook-iphoneos-unsigned
+          path: ${{ runner.temp }}/NotebookGame-iphoneos.zip
+          if-no-files-found: error
       - name: Capture iPhone simulator
         run: |
           DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for group in d["devices"].values() for v in group if "iPhone" in v["name"]))')
