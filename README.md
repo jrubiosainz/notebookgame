@@ -78,10 +78,13 @@ reported, not silently replaced. New game requires confirmation.
 
 ### Screenshots
 
-[Screenshots](docs/screenshots/) show the actual SpriteKit renderer, not concept
-art. Development captures use explicit, reproducible gameplay fixtures, including
-a built night camp; they never overwrite a player's save. The iPhone workflow
-captures these same states inside Apple's simulator.
+![The restored full-screen notebook adventure](docs/screenshots/overview.png)
+
+[Nine iPhone screenshots](docs/screenshots/) show the actual game running in the
+iPhone 17 Pro simulator, not concept art. They were captured by
+[the iPhone workflow](https://github.com/jrubiosainz/notebookgame/actions/runs/33950749012).
+Development captures use explicit, reproducible gameplay fixtures, including a
+built night camp; they never overwrite a player's save.
 
 ---
 
