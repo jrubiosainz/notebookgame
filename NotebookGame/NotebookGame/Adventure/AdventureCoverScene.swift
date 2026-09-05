@@ -61,9 +61,6 @@ final class AdventureCoverScene: SKScene {
         let hero = NotebookVisuals.sprite("nib_idle", folder: "characters", height: min(236, size.height * 0.29))
         hero.position = wash.position
         addChild(hero)
-        let eraser = NotebookVisuals.eraser(size: 51)
-        eraser.position = CGPoint(x: hero.position.x + 49, y: hero.position.y - 16)
-        addChild(eraser)
         hero.run(.repeatForever(.sequence([.moveBy(x: 0, y: 5, duration: 1.7),
                                           .moveBy(x: 0, y: -5, duration: 1.7)])))
         for (i, color) in Pigment.allCases.enumerated() {

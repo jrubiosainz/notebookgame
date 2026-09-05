@@ -47,6 +47,12 @@ swings an **eraser**: creatures progressively lose opacity and disappear into
 recoverable scraps. Memories improve its reach. Ink spreads at night, retreats
 in daylight, and can be erased or contained with walls.
 
+Nib walks using four-frame front, back and side sprite cycles from the original
+art family. The left-facing cycle mirrors the right; footsteps follow actual
+distance, and stopping preserves the facing direction. Painting and erasing
+have their own short body gestures, held-tool motion and effects. Tools are
+put away afterward: neither the idle character nor the cover has a floating eraser.
+
 Daylight lasts 160 seconds and night 80. Food, warmth and the integrity of Nib's
 outline matter. Collect renewable supplies, build paper paths over ink, wooden
 walls, campfires and shelters. Fires consume fuel; resting nearby feeds them
@@ -250,6 +256,7 @@ swiftc -swift-version 5 -D DEBUG -O -framework Cocoa -framework SpriteKit \
   -o /tmp/NotebookPreview
 /tmp/NotebookPreview
 /tmp/NotebookPreview --validate
+/tmp/NotebookPreview --animate /tmp/nib-motion.gif
 /tmp/NotebookPreview --capture /tmp/notebook-captures
 /tmp/NotebookPreview --compact --capture /tmp/notebook-compact
 ```
@@ -259,6 +266,9 @@ WASD/arrows move; E interacts; Space erases; B opens the bag; C builds; J opens 
 sequence, construction and preservation of a live game after a save failure.
 It also checks that the illustrated joystick is used and broad HUD panels
 cannot obscure the world.
+Animation checks cover all four directions, aspect ratios, foot anchoring,
+distance-driven cadence, rest poses, gesture pause and tool cleanup.
+`--animate` records the real SpriteKit walking and action poses as an animated GIF.
 `--compact` exercises a 375 x 667 point viewport. Captures are rendered at Retina
 resolution. This is a development preview, **not a Steam release**. A desktop
 edition still needs controller support, desktop layouts, packaging and platform

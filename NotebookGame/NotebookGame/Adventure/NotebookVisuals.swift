@@ -135,6 +135,7 @@ enum NotebookVisuals {
 
     static func eraser(size: CGFloat = 36) -> SKNode {
         let node = SKNode()
+        node.name = "eraser-tool"
         let body = card(CGSize(width: size, height: size * 0.57),
                         fill: SKColor(red: 0.88, green: 0.56, blue: 0.49, alpha: 1), radius: 4)
         body.zRotation = -0.35

@@ -7,8 +7,7 @@ final class AdventureWorldNode: SKNode {
     private let objectsLayer = SKNode()
     private let structuresLayer = SKNode()
     private let enemiesLayer = SKNode()
-    private let hero = SKNode()
-    private let heroSprite = NotebookVisuals.sprite("nib_idle", folder: "characters", height: 76)
+    private let hero = NibAnimator()
     private var objectNodes: [String: SKNode] = [:]
     private var creatureNodes: [String: SKSpriteNode] = [:]
     private var renderedInk: Set<PagePoint> = []
@@ -34,15 +33,6 @@ final class AdventureWorldNode: SKNode {
         addChild(structuresLayer)
         addChild(enemiesLayer)
         addChild(hero)
-        heroSprite.anchorPoint = CGPoint(x: 0.5, y: 0.04)
-        hero.addChild(heroSprite)
-        let shadow = NotebookVisuals.wash(radius: 17, color: NotebookVisuals.ink.withAlphaComponent(0.15))
-        shadow.zPosition = -1
-        hero.addChild(shadow)
-        let eraser = NotebookVisuals.eraser(size: 23)
-        eraser.position = CGPoint(x: 25, y: 25)
-        eraser.zRotation = -0.4
-        hero.addChild(eraser)
         heroLight.zPosition = 3
         addChild(heroLight)
         for i in (1...5).reversed() {
@@ -82,6 +72,10 @@ final class AdventureWorldNode: SKNode {
         collectedSignature = engine.save.collected
         harvestSignature = engine.save.harvestedDay
         lastDay = engine.day
+        lastHeroX = engine.save.x
+        lastHeroY = engine.save.y
+        hero.reset(facing: NibAnimator.Facing(direction: CGVector(dx: CGFloat(engine.save.facing.x),
+                                                                dy: CGFloat(engine.save.facing.y))))
         let page = engine.page
         let w = CGFloat(page.width) * Self.tile
         let h = CGFloat(page.height) * Self.tile
@@ -252,9 +246,9 @@ final class AdventureWorldNode: SKNode {
         animationTime += dt
         hero.position = Self.position(x: engine.save.x, y: engine.save.y)
         hero.zPosition = 2101 - hero.position.y
-        let moving = abs(engine.save.x - lastHeroX) + abs(engine.save.y - lastHeroY) > 0.002
-        heroSprite.position.y = moving ? abs(sin(animationTime * 13)) * 3 : sin(animationTime * 2) * 0.7
-        heroSprite.zRotation = moving ? sin(animationTime * 13) * 0.018 : 0
+        let displacement = CGVector(dx: engine.save.x - lastHeroX, dy: engine.save.y - lastHeroY)
+        hero.update(dt: dt, displacement: displacement,
+                    heading: CGVector(dx: CGFloat(engine.save.facing.x), dy: CGFloat(engine.save.facing.y)))
         lastHeroX = engine.save.x
         lastHeroY = engine.save.y
         heroLight.position = hero.position
@@ -293,7 +287,10 @@ final class AdventureWorldNode: SKNode {
         let creatures = engine.save.creatures.filter { $0.pageID == engine.page.id && $0.remaining > 0 }
         let ids = Set(creatures.map(\.id))
         for id in Array(creatureNodes.keys) where !ids.contains(id) {
-            creatureNodes.removeValue(forKey: id)?.removeFromParent()
+            creatureNodes.removeValue(forKey: id)?.run(.sequence([
+                .group([.fadeOut(withDuration: 0.2), .scale(to: 0.7, duration: 0.2)]),
+                .removeFromParent()
+            ]))
         }
         for creature in creatures {
             let sprite: SKSpriteNode
@@ -427,7 +424,25 @@ final class AdventureWorldNode: SKNode {
         }
     }
 
-    func paintEffect(at point: PagePoint, pigment: Pigment) {
+    func paintEffect(at point: PagePoint, pigment: Pigment, animateHero: Bool = true) {
+        if animateHero {
+            let direction = CGVector(dx: Self.position(point).x - hero.position.x,
+                                     dy: Self.position(point).y - hero.position.y)
+            hero.play(.paint(pigment), toward: direction)
+            let path = CGMutablePath()
+            let start = CGPoint(x: hero.position.x, y: hero.position.y + 29)
+            let end = Self.position(point)
+            path.move(to: start)
+            path.addQuadCurve(to: end, control: CGPoint(x: (start.x + end.x) / 2,
+                                                        y: max(start.y, end.y) + 33))
+            let dab = NotebookVisuals.wash(radius: 5, color: NotebookVisuals.color(pigment))
+            dab.position = start
+            dab.zPosition = 4001
+            addChild(dab)
+            dab.run(.sequence([.wait(forDuration: 0.08),
+                               .follow(path, asOffset: false, orientToPath: false, duration: 0.20),
+                               .removeFromParent()]))
+        }
         let wash = NotebookVisuals.wash(radius: 45, color: NotebookVisuals.color(pigment).withAlphaComponent(0.6))
         wash.position = Self.position(point)
         wash.zPosition = 4000
@@ -447,7 +462,8 @@ final class AdventureWorldNode: SKNode {
         }
     }
 
-    func eraseEffect(reach: Double) {
+    func eraseEffect(reach: Double, facing: PagePoint) {
+        hero.play(.erase, toward: CGVector(dx: CGFloat(facing.x), dy: CGFloat(facing.y)))
         let circle = SKShapeNode(circleOfRadius: CGFloat(reach) * Self.tile)
         circle.position = hero.position
         circle.strokeColor = NotebookVisuals.paper

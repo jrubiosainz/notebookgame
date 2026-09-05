@@ -387,7 +387,7 @@ final class AdventureScene: SKScene {
         case "erase":
             guard modalKind == nil else { return }
             let result = engine.erase()
-            if result.success { world.eraseEffect(reach: engine.eraserReach) }
+            if result.success { world.eraseEffect(reach: engine.eraserReach, facing: engine.save.facing) }
             consume(result, asDialogue: false)
         case "interact":
             guard modalKind == nil else { return }
@@ -396,11 +396,14 @@ final class AdventureScene: SKScene {
                 if result.success, kind != .wall, kind != .path { selectedBuild = nil }
                 consume(result)
             } else if let object = engine.nearbyObject {
+                let wasPainted = engine.save.painted.contains(object.id)
                 let result = engine.interact(object.id)
+                let justPainted = !wasPainted && engine.save.painted.contains(object.id)
                 if let color = result.color, result.success {
-                    world.paintEffect(at: object.point, pigment: color)
+                    world.paintEffect(at: object.point, pigment: color, animateHero: justPainted)
                 }
-                consume(result, asDialogue: object.kind == .npc || object.kind == .memory || object.kind == .inkwell)
+                consume(result, asDialogue: !justPainted &&
+                        (object.kind == .npc || object.kind == .memory || object.kind == .inkwell))
             } else {
                 showToast("Acercate a un dibujo. Tu mapa y tus notas estan en la bolsa.")
             }

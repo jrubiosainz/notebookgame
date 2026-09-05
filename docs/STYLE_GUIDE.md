@@ -96,6 +96,12 @@ Reuse `ui/joystick_base`, `ui/joystick_knob`, `ui/button` and the original heart
 drawings. Keep secondary actions, the atlas and inventory inside the illustrated
 bag panel. Page titles are temporary annotations, not permanent chrome.
 
+Nib's adventure poses use the existing `characters/nib/walk_down`, `walk_up`
+and `walk_side` frame families. Keep their aspect ratios and anchor their feet
+to the same ground point. Use the directional resting frame rather than swapping
+to a differently shaded idle drawing. The cover stays tool-free; brushes and
+erasers appear briefly during gestures, never as permanently floating ornaments.
+
 ```bash
 # edit tools/style.py
 python tools/generate_assets.py --force
