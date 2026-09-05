@@ -22,6 +22,9 @@ SWIFT_ROOT = ROOT / "NotebookGame" / "NotebookGame"
 
 # Art.texture("rock_small", in: "props")
 TEXTURE = re.compile(r'Art\.texture\(\s*"([^"]+)"\s*,\s*in:\s*"([^"]+)"')
+NOTEBOOK_SPRITE = re.compile(
+    r'NotebookVisuals\.sprite\(\s*"([^"]+)"\s*,(?:\s*folder:\s*"([^"]+)"\s*,)?'
+)
 # Art.frames(in: "characters/nib/walk_down", fallback: "nib_idle", ...)
 FRAMES = re.compile(r'Art\.frames\(\s*in:\s*"([^"]+)"')
 # Data-driven names, e.g. spriteName: "scribble" or sprite: "pencil_case_stall"
@@ -73,6 +76,14 @@ def main() -> int:
             if key not in singles:
                 hint = " (that is a sliced sheet, use Art.frames)" if key in folders else ""
                 problems.append(f"{rel}: Art.texture -> '{key}' is not in the manifest{hint}")
+
+        for name, folder in NOTEBOOK_SPRITE.findall(src):
+            key = f"{folder or 'props'}/{name}"
+            used_singles.add(key)
+            if key not in singles:
+                problems.append(f"{rel}: NotebookVisuals.sprite -> '{key}' is not in the manifest")
+            elif not (ROOT / "assets" / f"{key}.png").is_file():
+                problems.append(f"{rel}: '{key}' is declared but its PNG is missing")
 
         for folder in FRAMES.findall(src):
             used_folders.add(folder)

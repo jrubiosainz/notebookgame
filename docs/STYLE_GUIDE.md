@@ -91,6 +91,11 @@ runtime. Night uses a dark mask with soft cutouts around burning campfires and
 shelters. This intentional runtime color is not a reason to remove grayscale
 enforcement from the generation pipeline.
 
+The live interface must not reserve a header/footer or resemble a dashboard.
+Reuse `ui/joystick_base`, `ui/joystick_knob`, `ui/button` and the original heart
+drawings. Keep secondary actions, the atlas and inventory inside the illustrated
+bag panel. Page titles are temporary annotations, not permanent chrome.
+
 ```bash
 # edit tools/style.py
 python tools/generate_assets.py --force

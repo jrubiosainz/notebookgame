@@ -1,6 +1,6 @@
 import Foundation
 
-// swiftc NotebookGame/NotebookGame/Adventure/*.swift tools/validate_adventure.swift -o /tmp/validate-adventure
+// Compile with the four Foundation-only Adventure sources; see README.md.
 @main
 struct AdventureValidation {
     static var checks = 0

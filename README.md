@@ -59,12 +59,17 @@ useful. The campaign has an ending and continued building/exploration afterward.
 
 ### iPhone controls
 
-Use the lower-left floating stick to move and the contextual dark button to
+The world fills the entire screen. The original illustrated joystick, hearts
+and paper buttons float over it; no dashboard reserves half the display. The
+page title fades away, and the map, objective and supplies live in **BOLSA**.
+
+Use the lower-left floating stick to move and the contextual paper button to
 discover, paint, gather, talk or cross a page. **BORRAR** sweeps the nearby area.
-**CONSTRUIR** opens recipes: choose one, face a tile, then **COLOCAR**. A green
+**BOLSA > CONSTRUIR** opens recipes: choose one, face a tile, then **COLOCAR**. A green
 outline means the placement is valid; paper paths and walls stay selected for
 repeated placement. Reopen the workbench to cancel. **COMER**, **DESCANSAR** and
-**DIARIO** are always available. Reading and menus pause survival.
+**DIARIO** are in the bag rather than permanent toolbars. Reading and menus
+pause survival.
 
 The new adventure saves atomically every five active seconds, after actions,
 and when backgrounded. It uses `notebook-adventure-v2.json`; the original demo's
@@ -75,7 +80,8 @@ reported, not silently replaced. New game requires confirmation.
 
 [Screenshots](docs/screenshots/) show the actual SpriteKit renderer, not concept
 art. Development captures use explicit, reproducible gameplay fixtures, including
-a built night camp; they never overwrite a player's save.
+a built night camp; they never overwrite a player's save. The iPhone workflow
+captures these same states inside Apple's simulator.
 
 ---
 
@@ -240,11 +246,16 @@ swiftc -swift-version 5 -D DEBUG -O -framework Cocoa -framework SpriteKit \
   NotebookGame/NotebookGame/Adventure/*.swift tools/preview_adventure.swift \
   -o /tmp/NotebookPreview
 /tmp/NotebookPreview
+/tmp/NotebookPreview --validate
 /tmp/NotebookPreview --capture /tmp/notebook-captures
 /tmp/NotebookPreview --compact --capture /tmp/notebook-compact
 ```
 
-WASD/arrows move; E interacts; Space erases; C builds; J opens the diary.
+WASD/arrows move; E interacts; Space erases; B opens the bag; C builds; J opens the diary.
+`--validate` exercises the actual scene's controls, modal pause, paint/open
+sequence, construction and preservation of a live game after a save failure.
+It also checks that the illustrated joystick is used and broad HUD panels
+cannot obscure the world.
 `--compact` exercises a 375 x 667 point viewport. Captures are rendered at Retina
 resolution. This is a development preview, **not a Steam release**. A desktop
 edition still needs controller support, desktop layouts, packaging and platform

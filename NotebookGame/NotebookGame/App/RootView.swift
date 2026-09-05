@@ -14,7 +14,7 @@ struct RootView: View {
             ZStack {
                 Color(Paper.background)
                 if let scene {
-                    SpriteView(scene: scene, options: [.ignoresSiblingOrder])
+                    SpriteView(scene: scene)
                 }
             }
             .ignoresSafeArea()
@@ -40,7 +40,8 @@ struct RootView: View {
             let scene = AdventureScene(size: resolved,
                                        engine: AdventureEngine(save: AdventurePreviewFixtures.save(for: name)))
             scene.savesEnabled = false
-            scene.capturePanel = name == "atlas" ? "journal" : name == "workbench" ? "craft" : nil
+            scene.capturePanel = name == "atlas" ? "journal"
+                : name == "workbench" ? "craft" : name == "bag" ? "bag" : nil
             return scene
         }
         #endif

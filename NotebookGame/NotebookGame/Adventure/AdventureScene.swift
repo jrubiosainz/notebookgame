@@ -18,19 +18,19 @@ final class AdventureScene: SKScene {
     private let modal = SKNode()
     private let night = SKSpriteNode()
     private let joystick = SKNode()
-    private let knob = SKShapeNode(circleOfRadius: 20)
+    private let knob = NotebookVisuals.sprite("joystick_knob", folder: "ui", height: 44)
     private var buttons: [NotebookButton] = []
     private var modalButtons: [NotebookButton] = []
     private var labels: [String: SKLabelNode] = [:]
-    private var meters: [String: SKShapeNode] = [:]
+    private var hearts: [SKSpriteNode] = []
     private let palette = SKNode()
-    private let minimap = SKNode()
     private var paletteColors: Set<Pigment> = []
     private var lastTime: TimeInterval = 0
     private var hudClock: Double = 0
     private var saveClock: Double = 0
     private var movement = CGVector.zero
     private var stickOrigin = CGPoint.zero
+    private var stickHome = CGPoint.zero
     private var selectedBuild: BuildKind?
     private var modalKind: String?
     private var dialogueLines: [String] = []
@@ -80,6 +80,7 @@ final class AdventureScene: SKScene {
         night.zPosition = 5000
         addChild(night)
         interface.zPosition = 10000
+        interface.name = "adventure-hud"
         addChild(interface)
         modal.zPosition = 20000
         addChild(modal)
@@ -173,185 +174,110 @@ final class AdventureScene: SKScene {
         interface.removeAllChildren()
         buttons.removeAll()
         labels.removeAll()
-        meters.removeAll()
+        hearts.removeAll()
         palette.removeAllChildren()
-        minimap.removeAllChildren()
         paletteColors = []
         let w = size.width
         let top = size.height - safeTop
-        let header = NotebookVisuals.card(CGSize(width: w + 4, height: safeTop + 150), radius: 0)
-        header.position = CGPoint(x: w / 2, y: size.height - (safeTop + 150) / 2)
-        header.strokeColor = NotebookVisuals.muted.withAlphaComponent(0.28)
-        interface.addChild(header)
-        _ = addLabel("brand", "N O T E B O O K", x: 23, y: top - 10, fontSize: 11,
-                     color: NotebookVisuals.muted, sans: true).horizontalAlignmentMode = .left
-        _ = addLabel("page", engine.page.name, x: 22, y: top - 36, fontSize: 21).horizontalAlignmentMode = .left
-        addButton("DIARIO", id: "journal", x: w - 52, y: top - 23, width: 74, height: 44, font: 11)
-        let rule = NotebookVisuals.rule(width: w - 44, color: NotebookVisuals.muted.withAlphaComponent(0.4))
-        rule.position = CGPoint(x: w / 2, y: top - 57)
-        interface.addChild(rule)
-        let usable = w - 120
-        for (index, key) in ["integrity", "hunger", "warmth"].enumerated() {
-            let x = 22 + CGFloat(index) * usable / 3
-            let titles = ["TRAZO", "COMIDA", "CALOR"]
-            let title = addLabel(key + "Label", titles[index], x: x, y: top - 72,
-                                 fontSize: 9, color: NotebookVisuals.muted, sans: true)
-            title.horizontalAlignmentMode = .left
-            let bg = NotebookVisuals.card(CGSize(width: usable / 3 - 13, height: 5),
-                                          fill: SKColor(white: 0.80, alpha: 0.6), radius: 2)
-            bg.lineWidth = 0
-            bg.position = CGPoint(x: x + (usable / 3 - 13) / 2, y: top - 86)
-            interface.addChild(bg)
-            let fill = SKShapeNode(rect: CGRect(x: 0, y: -2.5, width: usable / 3 - 13, height: 5),
-                                   cornerRadius: 2)
-            fill.strokeColor = .clear
-            fill.fillColor = [NotebookVisuals.color(.red), NotebookVisuals.color(.green), NotebookVisuals.gold][index]
-            fill.position = CGPoint(x: x, y: top - 86)
-            interface.addChild(fill)
-            meters[key] = fill
+        for index in 0..<4 {
+            let heart = NotebookVisuals.sprite("heart_full", folder: "ui", height: 21)
+            heart.size = CGSize(width: 21, height: 21)
+            heart.position = CGPoint(x: 27 + CGFloat(index) * 23, y: top - 15)
+            interface.addChild(heart)
+            hearts.append(heart)
         }
-        _ = addLabel("time", "", x: w - 49, y: top - 72, fontSize: 12, sans: true)
-        _ = addLabel("day", "", x: w - 49, y: top - 89, fontSize: 10, color: NotebookVisuals.muted)
-        let objective = addLabel("objective", "", x: 22, y: top - 119, fontSize: 12)
-        objective.horizontalAlignmentMode = .left
-        objective.numberOfLines = 2
-        objective.preferredMaxLayoutWidth = w - 44
-        objective.lineBreakMode = .byWordWrapping
-
-        palette.position = CGPoint(x: 24, y: top - 175)
+        let food = NotebookVisuals.sprite("bush", height: 22)
+        food.position = CGPoint(x: 130, y: top - 15)
+        interface.addChild(food)
+        _ = addLabel("food", "", x: 151, y: top - 15, fontSize: 13)
+        let fire = NotebookVisuals.sprite("campfire", height: 23)
+        fire.position = CGPoint(x: 184, y: top - 15)
+        interface.addChild(fire)
+        _ = addLabel("warmth", "", x: 207, y: top - 15, fontSize: 13)
+        _ = addLabel("time", "", x: 21, y: top - 42, fontSize: 12).horizontalAlignmentMode = .left
+        addButton("BOLSA", id: "bag", x: w - 49, y: top - 20, width: 81, height: 51, font: 13)
+        let page = addLabel("page", engine.page.name, x: w / 2, y: top - 100, fontSize: 17)
+        page.run(.sequence([.wait(forDuration: 5), .fadeOut(withDuration: 1.5)]))
+        palette.position = CGPoint(x: 26, y: top - 67)
         interface.addChild(palette)
-        minimap.position = CGPoint(x: w - 57, y: top - 210)
-        interface.addChild(minimap)
-
         let bottom = safeBottom
-        let footer = NotebookVisuals.card(CGSize(width: w + 4, height: bottom + 183), radius: 0)
-        footer.position = CGPoint(x: w / 2, y: (bottom + 183) / 2)
-        footer.fillColor = NotebookVisuals.paper.withAlphaComponent(0.97)
-        footer.strokeColor = NotebookVisuals.muted.withAlphaComponent(0.28)
-        interface.addChild(footer)
-        _ = addLabel("resources", "", x: 22, y: bottom + 163, fontSize: 11,
-                     color: NotebookVisuals.muted, sans: true).horizontalAlignmentMode = .left
-        _ = addLabel("depth", "", x: w - 20, y: bottom + 163, fontSize: 9,
-                     color: NotebookVisuals.muted, sans: true).horizontalAlignmentMode = .right
-        let toolWidth = (w - 48) / 3
-        addButton("CONSTRUIR", id: "craft", x: 16 + toolWidth / 2, y: bottom + 128,
-                  width: toolWidth, height: 44, font: 10)
-        addButton("COMER", id: "eat", x: w / 2, y: bottom + 128, width: toolWidth, height: 44, font: 10)
-        addButton("DESCANSAR", id: "rest", x: w - 16 - toolWidth / 2, y: bottom + 128,
-                  width: toolWidth, height: 44, font: 10)
         joystick.removeAllChildren()
-        joystick.position = CGPoint(x: 84, y: bottom + 63)
-        let ring = SKShapeNode(circleOfRadius: 44)
-        ring.fillColor = NotebookVisuals.paper
-        ring.strokeColor = NotebookVisuals.muted.withAlphaComponent(0.5)
-        ring.lineWidth = 1.3
-        joystick.addChild(ring)
-        let inner = SKShapeNode(circleOfRadius: 35)
-        inner.fillColor = .clear
-        inner.strokeColor = NotebookVisuals.muted.withAlphaComponent(0.15)
-        inner.lineWidth = 1
-        joystick.addChild(inner)
-        knob.fillColor = NotebookVisuals.ink.withAlphaComponent(0.13)
-        knob.strokeColor = NotebookVisuals.ink.withAlphaComponent(0.45)
-        knob.lineWidth = 1.2
+        stickHome = CGPoint(x: 79, y: bottom + 70)
+        joystick.position = stickHome
+        let base = NotebookVisuals.sprite("joystick_base", folder: "ui", height: 110)
+        base.name = "original-joystick-base"
+        base.alpha = 0.62
+        joystick.addChild(base)
         knob.position = .zero
+        knob.name = "original-joystick-knob"
+        knob.alpha = 0.80
         joystick.addChild(knob)
         interface.addChild(joystick)
-        _ = addLabel("walk", "MOVER", x: 84, y: bottom + 8, fontSize: 9,
-                     color: NotebookVisuals.muted, sans: true)
-        addButton("BORRAR", id: "erase", x: w - 182, y: bottom + 58, width: 83, height: 57, font: 11)
-        addButton("EXPLORAR", id: "interact", x: w - 70, y: bottom + 58,
-                  width: 124, height: 57, filled: true, font: 12)
-        _ = addLabel("target", "", x: w - 125, y: bottom + 14, fontSize: 10, color: NotebookVisuals.muted)
+        addButton("BORRAR", id: "erase", x: w - 173, y: bottom + 49, width: 83, height: 57, font: 12)
+        addButton("MIRAR", id: "interact", x: w - 70, y: bottom + 64,
+                  width: 112, height: 72, filled: true, font: 14)
+        _ = addLabel("target", "", x: w - 104, y: bottom + 119, fontSize: 11)
         night.size = size
         night.position = CGPoint(x: w / 2, y: size.height / 2)
         resetInput()
     }
 
     private func refreshHUD() {
-        labels["page"]?.text = engine.page.name
-        if let label = labels["page"] {
-            label.fontSize = 21
-            label.fontSize = min(21, 21 * (size.width - 120) / max(1, label.frame.width))
+        if let label = labels["page"], label.text != engine.page.name {
+            label.text = engine.page.name
+            label.removeAllActions()
+            label.alpha = 1
+            label.run(.sequence([.wait(forDuration: 5), .fadeOut(withDuration: 1.5)]))
         }
-        labels["objective"]?.text = engine.objective
-        labels["time"]?.text = engine.isNight ? "NOCHE" : "LUZ"
-        labels["day"]?.text = "DIA \(engine.day)"
-        labels["resources"]?.text = "\(engine.save.scraps) PAPEL   \(engine.save.wood) MADERA   \(engine.save.food) BAYAS"
-        labels["depth"]?.text = engine.page.depth == 0
-            ? "P. \(engine.page.number) / SUP." : "P. \(engine.page.number) / -\(engine.page.depth)"
-        meters["integrity"]?.xScale = max(0.001, CGFloat(engine.save.integrity / 100))
-        meters["hunger"]?.xScale = max(0.001, CGFloat(engine.save.hunger / 100))
-        meters["warmth"]?.xScale = max(0.001, CGFloat(engine.save.warmth / 100))
+        labels["time"]?.text = "Dia \(engine.day) / \(engine.isNight ? "noche" : "luz")"
+        labels["food"]?.text = "\(Int(ceil(engine.save.hunger)))"
+        labels["warmth"]?.text = "\(Int(ceil(engine.save.warmth)))"
+        for (index, heart) in hearts.enumerated() {
+            heart.texture = NotebookVisuals.texture(engine.save.integrity > Double(index * 25)
+                                                    ? "heart_full" : "heart_empty", folder: "ui")
+        }
+        for label in labels.values {
+            label.fontColor = engine.isNight ? NotebookVisuals.paper : NotebookVisuals.ink
+        }
         let nearby = engine.nearbyObject
         buttons.first { $0.actionID == "interact" }?.caption.text = selectedBuild != nil
-            ? "COLOCAR" : nearby.map { engine.prompt(for: $0).uppercased() } ?? "EXPLORAR"
-        if let button = buttons.first(where: { $0.actionID == "interact" }) {
-            button.caption.fontSize = 12
-            if button.caption.frame.width > 110 {
-                button.caption.fontSize = max(9, 12 * 110 / button.caption.frame.width)
-            }
-        }
-        labels["target"]?.text = selectedBuild.map { $0.title } ?? nearby?.name ?? "Acercate a un dibujo"
-        if let target = labels["target"], target.frame.width > size.width - 145 {
-            target.fontSize = 9
+            ? "COLOCAR" : nearby.map(contextCaption) ?? "MIRAR"
+        labels["target"]?.text = selectedBuild.map { $0.title } ?? nearby?.name ?? ""
+        labels["target"]?.fontSize = 11
+        if let target = labels["target"], target.frame.width > 188 {
+            target.fontSize *= 188 / target.frame.width
         }
         if palette.children.isEmpty || paletteColors != engine.save.colors {
             paletteColors = engine.save.colors
             palette.removeAllChildren()
             for (index, pigment) in Pigment.allCases.enumerated() {
                 let known = engine.save.colors.contains(pigment)
-                let dot = NotebookVisuals.wash(radius: 12,
+                let dot = NotebookVisuals.wash(radius: 7,
                                                color: known ? NotebookVisuals.color(pigment)
                                                : NotebookVisuals.paper)
                 dot.strokeColor = known ? NotebookVisuals.color(pigment) : NotebookVisuals.muted.withAlphaComponent(0.5)
                 dot.lineWidth = 1
-                dot.position = CGPoint(x: CGFloat(index) * 29, y: 0)
+                dot.position = CGPoint(x: CGFloat(index) * 20, y: 0)
                 palette.addChild(dot)
-                let marker = NotebookVisuals.label(known ? String(pigment.title.prefix(1)) : "?", size: 9,
-                                                   color: known ? NotebookVisuals.paper : NotebookVisuals.muted,
-                                                   sans: true)
+                let marker = NotebookVisuals.label(known ? "" : "?", size: 8,
+                                                   color: NotebookVisuals.muted)
                 dot.addChild(marker)
             }
         }
-        drawMinimap()
     }
 
-    private func drawMinimap() {
-        minimap.removeAllChildren()
-        let bg = NotebookVisuals.card(CGSize(width: 79, height: 93), radius: 5)
-        bg.fillColor = NotebookVisuals.paper.withAlphaComponent(0.90)
-        bg.strokeColor = NotebookVisuals.muted.withAlphaComponent(0.4)
-        minimap.addChild(bg)
-        let scale: CGFloat = 2.4
-        let origin = CGPoint(x: -CGFloat(engine.page.width) * scale / 2,
-                             y: -CGFloat(engine.page.height) * scale / 2 + 6)
-        for point in engine.inkTiles {
-            let dot = SKSpriteNode(color: NotebookVisuals.ink.withAlphaComponent(0.65),
-                                   size: CGSize(width: scale + 0.5, height: scale + 0.5))
-            dot.position = CGPoint(x: origin.x + CGFloat(point.x) * scale,
-                                   y: origin.y + CGFloat(point.y) * scale)
-            minimap.addChild(dot)
+    private func contextCaption(_ object: AdventureObject) -> String {
+        if object.kind != .pigment, object.pigment != nil, !engine.save.painted.contains(object.id) {
+            return "PINTAR"
         }
-        for object in engine.page.objects where engine.isAvailable(object) {
-            guard [.gate, .pigment, .npc, .memory, .inkwell].contains(object.kind) else { continue }
-            let marker = SKShapeNode(circleOfRadius: object.kind == .gate ? 2.2 : 1.5)
-            marker.fillColor = object.pigment.map(NotebookVisuals.color) ?? NotebookVisuals.muted
-            marker.strokeColor = .clear
-            marker.position = CGPoint(x: origin.x + CGFloat(object.point.x) * scale,
-                                      y: origin.y + CGFloat(object.point.y) * scale)
-            minimap.addChild(marker)
+        switch object.kind {
+        case .npc: return "HABLAR"
+        case .chest: return "ABRIR"
+        case .gate: return "CRUZAR"
+        case .memory, .rock: return "LEER"
+        case .inkwell: return "RESTAURAR"
+        default: return "COGER"
         }
-        let hero = SKShapeNode(circleOfRadius: 2.7)
-        hero.fillColor = NotebookVisuals.color(.red)
-        hero.strokeColor = NotebookVisuals.paper
-        hero.lineWidth = 1
-        hero.position = CGPoint(x: origin.x + CGFloat(engine.save.x) * scale,
-                                y: origin.y + CGFloat(engine.save.y) * scale)
-        minimap.addChild(hero)
-        let title = NotebookVisuals.label("PAGINA \(engine.page.number)", size: 8, sans: true)
-        title.position.y = -36
-        minimap.addChild(title)
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -443,15 +369,21 @@ final class AdventureScene: SKScene {
         case "journal":
             journalPage = 0
             openModal("journal")
+        case "bag":
+            openModal("bag")
         case "journal-next":
             journalPage = (journalPage + 1) % (journalSheets.count + 1)
             renderJournal()
         case "craft":
             openModal("craft")
         case "eat":
-            consume(engine.eat())
+            let event = engine.eat()
+            if modalKind == "bag" { renderBag() }
+            consume(event)
         case "rest":
-            consume(engine.rest())
+            let event = engine.rest()
+            if modalKind == "bag" { renderBag() }
+            consume(event)
         case "erase":
             guard modalKind == nil else { return }
             let result = engine.erase()
@@ -470,7 +402,7 @@ final class AdventureScene: SKScene {
                 }
                 consume(result, asDialogue: object.kind == .npc || object.kind == .memory || object.kind == .inkwell)
             } else {
-                showToast("Los puntos del mapa son dibujos por descubrir.")
+                showToast("Acercate a un dibujo. Tu mapa y tus notas estan en la bolsa.")
             }
         case "cancel-build":
             selectedBuild = nil
@@ -522,7 +454,8 @@ final class AdventureScene: SKScene {
         modal.childNode(withName: "toast")?.removeFromParent()
         let label = NotebookVisuals.text(text, width: size.width - 64, size: 13)
         let height = max(43, min(130, label.frame.height + 24))
-        let card = NotebookVisuals.card(CGSize(width: size.width - 36, height: height), radius: 8)
+        let card = NotebookVisuals.sprite("menu_panel", folder: "ui", height: height)
+        card.size = CGSize(width: size.width - 36, height: height)
         card.name = "toast"
         card.position = CGPoint(x: size.width / 2, y: safeBottom + 211 + height / 2)
         card.zPosition = 100
@@ -535,6 +468,7 @@ final class AdventureScene: SKScene {
     private func resetInput() {
         movement = .zero
         knob.position = .zero
+        joystick.position = stickHome
         #if canImport(UIKit)
         stickTouch = nil
         #else
@@ -551,11 +485,17 @@ final class AdventureScene: SKScene {
     }
 
     private func closeModal() {
+        let wasIntro = modalKind == "intro"
         modal.removeAllChildren()
         modalButtons.removeAll()
         modalKind = nil
         resetInput()
         lastTime = 0
+        if wasIntro {
+            labels["page"]?.removeAllActions()
+            labels["page"]?.alpha = 1
+            labels["page"]?.run(.sequence([.wait(forDuration: 5), .fadeOut(withDuration: 1.5)]))
+        }
     }
 
     private func modalBase(title: String, subtitle: String) -> (top: CGFloat, bottom: CGFloat) {
@@ -566,20 +506,21 @@ final class AdventureScene: SKScene {
         modal.addChild(shade)
         let top = size.height - safeTop - 27
         let bottom = safeBottom + 28
-        let card = NotebookVisuals.card(CGSize(width: size.width - 28, height: top - bottom), radius: 13)
+        let card = NotebookVisuals.sprite("menu_panel", folder: "ui", height: top - bottom)
+        card.size = CGSize(width: size.width - 28, height: top - bottom)
         card.position = CGPoint(x: size.width / 2, y: (top + bottom) / 2)
         modal.addChild(card)
         let heading = NotebookVisuals.label(title, size: 28)
         if heading.frame.width > size.width - 70 {
             heading.fontSize *= (size.width - 70) / heading.frame.width
         }
-        heading.position = CGPoint(x: size.width / 2, y: top - 38)
+        heading.position = CGPoint(x: size.width / 2, y: top - 58)
         modal.addChild(heading)
-        let sub = NotebookVisuals.label(subtitle, size: 10, color: NotebookVisuals.muted, sans: true)
-        sub.position = CGPoint(x: size.width / 2, y: top - 70)
+        let sub = NotebookVisuals.label(subtitle, size: 10, color: NotebookVisuals.muted)
+        sub.position = CGPoint(x: size.width / 2, y: top - 84)
         modal.addChild(sub)
         let rule = NotebookVisuals.rule(width: size.width - 76)
-        rule.position = CGPoint(x: size.width / 2, y: top - 90)
+        rule.position = CGPoint(x: size.width / 2, y: top - 101)
         modal.addChild(rule)
         return (top, bottom)
     }
@@ -588,10 +529,72 @@ final class AdventureScene: SKScene {
         switch modalKind {
         case "intro": showIntro()
         case "craft": renderCraft()
+        case "bag": renderBag()
         case "journal": renderJournal()
         case "dialogue": renderDialogue()
         default: break
         }
+    }
+
+    private func renderBag() {
+        let bounds = modalBase(title: "La mochila de Nib", subtitle: engine.page.name)
+        let supplies = NotebookVisuals.label(
+            "\(engine.save.scraps) retales   /   \(engine.save.wood) lena   /   \(engine.save.food) bayas", size: 15)
+        supplies.position = CGPoint(x: size.width / 2, y: bounds.top - 115)
+        modal.addChild(supplies)
+        let condition = NotebookVisuals.label(
+            "Trazo \(Int(engine.save.integrity))   Comida \(Int(engine.save.hunger))   Calor \(Int(engine.save.warmth))",
+            size: 12, color: NotebookVisuals.muted)
+        condition.position = CGPoint(x: size.width / 2, y: bounds.top - 143)
+        modal.addChild(condition)
+        let objective = NotebookVisuals.text(engine.objective, width: size.width - 90, size: 15)
+        objective.position = CGPoint(x: size.width / 2, y: bounds.top - 189)
+        modal.addChild(objective)
+        drawPageMap(center: CGPoint(x: size.width / 2, y: bounds.top - 293))
+        let width = (size.width - 90) / 2
+        addButton("COMER", id: "eat", x: size.width * 0.30, y: bounds.bottom + 173,
+                  width: width, height: 61, modal: true)
+        addButton("DESCANSAR", id: "rest", x: size.width * 0.70, y: bounds.bottom + 173,
+                  width: width, height: 61, modal: true, font: 12)
+        addButton("CONSTRUIR", id: "craft", x: size.width * 0.30, y: bounds.bottom + 111,
+                  width: width, height: 61, modal: true, font: 12)
+        addButton("DIARIO", id: "journal", x: size.width * 0.70, y: bounds.bottom + 111,
+                  width: width, height: 61, modal: true)
+        addButton("VOLVER AL MARGEN", id: "close", x: size.width / 2, y: bounds.bottom + 43,
+                  width: size.width - 100, height: 56, filled: true, modal: true)
+    }
+
+    private func drawPageMap(center: CGPoint) {
+        let map = SKNode()
+        map.position = center
+        modal.addChild(map)
+        let scale: CGFloat = size.height < 740 ? 3.7 : 5
+        let offset = CGPoint(x: -CGFloat(engine.page.width) * scale / 2,
+                             y: -CGFloat(engine.page.height) * scale / 2)
+        func position(_ point: PagePoint) -> CGPoint {
+            CGPoint(x: offset.x + CGFloat(point.x) * scale, y: offset.y + CGFloat(point.y) * scale)
+        }
+        for point in engine.page.blocked.union(engine.inkTiles) {
+            let dot = SKSpriteNode(color: NotebookVisuals.ink.withAlphaComponent(0.5),
+                                   size: CGSize(width: scale, height: scale))
+            dot.position = position(point)
+            map.addChild(dot)
+        }
+        for object in engine.page.objects where engine.isAvailable(object) {
+            let dot = SKShapeNode(circleOfRadius: 2)
+            dot.fillColor = object.pigment.map(NotebookVisuals.color) ?? NotebookVisuals.ink
+            dot.strokeColor = .clear
+            dot.position = position(object.point)
+            map.addChild(dot)
+        }
+        let hero = NotebookVisuals.label("x", size: 16, color: NotebookVisuals.color(.red))
+        hero.position = CGPoint(x: offset.x + CGFloat(engine.save.x) * scale,
+                                y: offset.y + CGFloat(engine.save.y) * scale)
+        map.addChild(hero)
+        let caption = NotebookVisuals.label("Pagina \(engine.page.number) / profundidad \(engine.page.depth)",
+                                             size: 10, color: NotebookVisuals.muted)
+        caption.position.y = -CGFloat(engine.page.height) * scale / 2 - 15
+        map.addChild(caption)
     }
 
     private static let opening: [(title: String, body: String, art: String, folder: String)] = [
@@ -783,18 +786,17 @@ final class AdventureScene: SKScene {
         for page in pages {
             guard let point = positions[page.id] else { continue }
             let visited = engine.save.visited.contains(page.id)
-            let tile = NotebookVisuals.card(CGSize(width: size.width * 0.33, height: 62),
-                                            fill: page.id == engine.page.id ? NotebookVisuals.ink : NotebookVisuals.paper,
-                                            radius: 7)
+            let tile = NotebookVisuals.sprite("button", folder: "ui", height: 72)
+            tile.size = CGSize(width: size.width * 0.36, height: 72)
             tile.position = point
             modal.addChild(tile)
             let title = NotebookVisuals.text(visited ? page.name : "Pagina sin abrir",
-                                             width: size.width * 0.29, size: 12,
-                                             color: page.id == engine.page.id ? NotebookVisuals.paper : NotebookVisuals.ink)
-            title.position.y = 4
+                                             width: size.width * 0.28, size: 11)
+            title.position.y = 9
             tile.addChild(title)
-            let number = NotebookVisuals.label("0\(page.number)", size: 9, color: NotebookVisuals.gold, sans: true)
-            number.position = CGPoint(x: 0, y: -22)
+            let number = NotebookVisuals.label(page.id == engine.page.id ? "estas aqui" : "0\(page.number)",
+                                               size: 9, color: NotebookVisuals.ink)
+            number.position = CGPoint(x: 0, y: -29)
             tile.addChild(number)
         }
         let hint = NotebookVisuals.text("El color abre rutas. Los tuneles y puentes permiten volver a las paginas anteriores.",
@@ -834,6 +836,7 @@ final class AdventureScene: SKScene {
             if point.x < size.width * 0.48, point.y < size.height * 0.48, stickTouch == nil {
                 stickTouch = touch
                 stickOrigin = point
+                joystick.position = point
                 updateStick(point)
             }
         }
@@ -857,6 +860,7 @@ final class AdventureScene: SKScene {
         if point.x < size.width * 0.48, point.y < size.height * 0.48 {
             mouseStick = true
             stickOrigin = point
+            joystick.position = point
             updateStick(point)
         }
     }
@@ -874,6 +878,7 @@ final class AdventureScene: SKScene {
         case 14: perform("interact")
         case 8: perform("craft")
         case 38: perform("journal")
+        case 11: perform("bag")
         case 53:
             if modalKind != "intro", modalKind != "dialogue" { closeModal() }
         default: keys.insert(event.keyCode)

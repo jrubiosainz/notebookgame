@@ -54,7 +54,7 @@ jobs:
           xcrun simctl status_bar "$DEVICE" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
           xcrun simctl install "$DEVICE" "$RUNNER_TEMP/NotebookBuild/Build/Products/Debug-iphonesimulator/NotebookGame.app"
           mkdir -p "$RUNNER_TEMP/iphone-captures"
-          for SCENE in cover prologue first-pigment brown-awakening camp atlas violet-seam workbench; do
+          for SCENE in cover prologue first-pigment brown-awakening camp atlas violet-seam workbench bag; do
             xcrun simctl launch "$DEVICE" com.jrubiosainz.notebookgame -notebook-capture "$SCENE"
             sleep 4
             xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/iphone-captures/$SCENE.png"

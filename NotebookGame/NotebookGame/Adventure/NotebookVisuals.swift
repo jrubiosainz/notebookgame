@@ -165,14 +165,13 @@ final class NotebookButton: SKNode {
          filled: Bool = false, fontSize: CGFloat = 14) {
         actionID = id
         hitSize = CGSize(width: width, height: height)
-        caption = NotebookVisuals.label(title, size: fontSize,
-                                         color: filled ? NotebookVisuals.paper : NotebookVisuals.ink,
-                                         sans: true)
+        caption = NotebookVisuals.label(title, size: fontSize)
+        if filled { caption.fontName = "ChalkboardSE-Bold" }
         super.init()
-        let face = NotebookVisuals.card(hitSize,
-                                       fill: filled ? NotebookVisuals.ink : NotebookVisuals.paper,
-                                       radius: 9)
+        let face = NotebookVisuals.sprite("button", folder: "ui", height: height)
+        face.size = hitSize
         addChild(face)
+        caption.position.y = height * 0.08
         caption.zPosition = 1
         addChild(caption)
         name = id

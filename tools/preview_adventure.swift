@@ -31,7 +31,7 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         window.title = "Notebook - El desborde | Native SpriteKit preview"
         window.center()
         skView = SKView(frame: CGRect(origin: .zero, size: sceneSize))
-        skView.ignoresSiblingOrder = true
+        skView.ignoresSiblingOrder = false
         skView.preferredFramesPerSecond = 60
         window.contentView = skView
         window.makeKeyAndOrderFront(nil)
@@ -48,7 +48,7 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
             nextCapture()
         } else {
             skView.presentScene(AdventureCoverScene(size: sceneSize))
-            print("Native preview: WASD/arrows move, E interacts, Space erases, C builds, J opens journal.")
+            print("Native preview: WASD/arrows move, E interacts, Space erases, B opens bag, C builds, J opens journal.")
         }
     }
 
@@ -64,6 +64,16 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         let scene = adventure(.fresh)
         skView.presentScene(scene)
         scene.isPaused = true
+        guard let hud = scene.childNode(withName: "adventure-hud"),
+              let stick = hud.childNode(withName: "//original-joystick-base") as? SKSpriteNode else {
+            preconditionFailure("The original illustrated joystick must be present")
+        }
+        precondition(stick.texture === NotebookVisuals.texture("joystick_base", folder: "ui"),
+                     "Use the original joystick artwork, not a geometric replacement")
+        precondition(!hud.children.contains {
+            let frame = $0.calculateAccumulatedFrame()
+            return frame.width >= scene.size.width * 0.9 && frame.height > 80
+        }, "Gameplay must not reserve broad header or footer panels")
         let opening = scene.engine.save
         scene.update(1)
         scene.update(2)
@@ -91,6 +101,9 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         precondition(!scene.engine.save.collected.contains("first_chest"), "Painting is not opening")
         scene.perform("interact")
         precondition(scene.engine.save.collected.contains("first_chest"), "Second interaction opens")
+        let beforeBag = scene.engine.save
+        scene.perform("bag")
+        precondition(scene.engine.save == beforeBag, "Bag opens without changing the world")
         scene.perform("craft")
         scene.perform("build-path")
         scene.engine.save.x = 10
@@ -109,8 +122,9 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         scene.perform("cover")
         precondition(skView.scene === scene, "Failed save must retain the live adventure")
         scene.saveHandler = { _ in }
+        scene.isPaused = false
         scene.perform("cover")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [self] in
             precondition(skView.scene is AdventureCoverScene, "Successful save permits exit")
             print("Presentation validation passed: modal pause/input, paint/open, placement, save failure retention.")
             NSApplication.shared.terminate(nil)
@@ -141,6 +155,11 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
             ("08-the-workbench", {
                 let scene = self.adventure(AdventurePreviewFixtures.save(for: "camp"))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { scene.perform("craft") }
+                return scene
+            }),
+            ("09-the-bag", {
+                let scene = self.adventure(AdventurePreviewFixtures.save(for: "camp"))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { scene.perform("bag") }
                 return scene
             })
         ]
