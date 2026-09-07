@@ -376,7 +376,49 @@ struct AdventureValidation {
         expect(AdventureStore.load(from: url) == nil && AdventureStore.loadError != nil, "Unknown page rejected before engine")
     }
 
+    static func nighttimeContactAndArrival() {
+        let engine = fixture(x: 10, y: 11)
+        engine.save.elapsed = 197.9
+        engine.save.nextCreatureAt = 220
+        engine.save.nextInkAt = 220
+        engine.save.integrity = 1
+        engine.save.colors = [.brown]
+        engine.save.collected = ["pigment_brown", "first_chest"]
+        engine.save.creatures = [
+            InkCreature(id: "contact-a", pageID: "margin", x: 10, y: 11, remaining: 1),
+            InkCreature(id: "contact-b", pageID: "margin", x: 10.1, y: 11.1, remaining: 1),
+            InkCreature(id: "far", pageID: "margin", x: 19, y: 20, remaining: 1),
+            InkCreature(id: "other-page", pageID: "garden", x: 10, y: 11, remaining: 1)
+        ]
+        engine.tick(1)
+        expect(engine.revivalCount == 1, "Fatal contact emits one revival for presentation")
+        expect(engine.save.integrity > 80, "Fatal ink contact returns safely to checkpoint")
+        expect(engine.save.creatures.map(\.id) == ["far", "other-page"],
+               "Respawn clears only nearby enemies on the arrival page")
+        expect(engine.save.colors == [.brown] && engine.save.collected.contains("first_chest"),
+               "Contact death preserves progression")
+        engine.save.flags.insert("margin_pass")
+        engine.save.painted.insert("margin_garden")
+        engine.save.x = 17
+        engine.save.y = 12
+        expect(engine.interact("margin_garden").changedPage, "Travel to a page already populated by ink")
+        expect(engine.save.creatures.map(\.id) == ["far"], "Page arrival safely clears destination enemies")
+    }
+
     static func main() throws {
+        if let index = CommandLine.arguments.firstIndex(of: "--replay-save"),
+           index + 1 < CommandLine.arguments.count {
+            let url = URL(fileURLWithPath: CommandLine.arguments[index + 1])
+            guard let save = AdventureStore.load(from: url) else {
+                preconditionFailure(AdventureStore.loadError ?? "Missing replay save")
+            }
+            let replay = AdventureEngine(save: save)
+            for _ in 0..<300 { replay.tick(0.1) }
+            expect(replay.revivalCount > 0, "Recorded nighttime contact safely respawns")
+            expect(replay.save.colors == save.colors && replay.save.collected == save.collected,
+                   "Recorded player's progression survives respawn unchanged")
+        }
+        nighttimeContactAndArrival()
         catalog()
         paintingAndClaims()
         try fullCampaign()

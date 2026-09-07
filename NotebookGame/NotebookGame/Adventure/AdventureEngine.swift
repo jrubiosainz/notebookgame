@@ -3,6 +3,7 @@ import Foundation
 final class AdventureEngine {
     var save: AdventureSave
     private(set) var lastMessage: String?
+    private(set) var revivalCount = 0
 
     init(save: AdventureSave = .fresh) {
         self.save = save
@@ -406,6 +407,7 @@ final class AdventureEngine {
     }
 
     private func respawn() {
+        revivalCount += 1
         save.pageID = save.checkpointPage
         save.x = Double(save.checkpoint.x)
         save.y = Double(save.checkpoint.y)
@@ -428,11 +430,14 @@ final class AdventureEngine {
     }
 
     private func clearArrival(_ point: PagePoint) {
-        save.ink[save.pageID, default: []] = inkTiles.filter {
+        // Snapshot before mutating a field of save: reading save in removeAll's
+        // predicate overlaps its exclusive write access and aborts on device.
+        let arrivalPage = save.pageID
+        save.ink[arrivalPage, default: []] = inkTiles.filter {
             hypot(Double($0.x - point.x), Double($0.y - point.y)) > 2.5
         }
         save.creatures.removeAll {
-            $0.pageID == save.pageID && hypot($0.x - Double(point.x), $0.y - Double(point.y)) <= 4
+            $0.pageID == arrivalPage && hypot($0.x - Double(point.x), $0.y - Double(point.y)) <= 4
         }
     }
 
