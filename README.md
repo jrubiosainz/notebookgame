@@ -106,9 +106,9 @@ reported, not silently replaced. New game requires confirmation.
 
 ![The restored full-screen notebook adventure](docs/screenshots/overview.png)
 
-[Nine iPhone screenshots](docs/screenshots/) show the actual game running in the
+[Eleven iPhone screenshots](docs/screenshots/) show the actual game running in the
 iPhone 17 Pro simulator, not concept art. They were captured by
-[the iPhone workflow](https://github.com/jrubiosainz/notebookgame/actions/runs/33959915583).
+[the iPhone workflow](https://github.com/jrubiosainz/notebookgame/actions/runs/34158882903).
 Development captures use explicit, reproducible gameplay fixtures, including a
 built night camp; they never overwrite a player's save.
 

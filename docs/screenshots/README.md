@@ -1,9 +1,9 @@
 # El desborde: iPhone screenshots
 
 These are actual `simctl` captures from the iPhone 17 Pro simulator, at
-1206 x 2622 pixels. The source is version 2.1 (build 3), commit
-`1d0050fb29e08766de4e85a85b9dd24e05e37c53`, captured in
-[workflow run 33959915583](https://github.com/jrubiosainz/notebookgame/actions/runs/33959915583).
+1206 x 2622 pixels. The source is version 2.2 (build 4), commit
+`3c9b67c895acc763bc4f2f7b63018222c848a091`, captured in
+[workflow run 34158882903](https://github.com/jrubiosainz/notebookgame/actions/runs/34158882903).
 The run also builds the unsigned iOS Release app. These are not physical-device
 captures or a TestFlight distribution.
 
@@ -18,6 +18,8 @@ captures or a TestFlight distribution.
 | 07-the-violet-seam | A deeper page and the next pigment |
 | 08-the-workbench | Construction recipes, shown only when opened |
 | 09-the-bag | Supplies, local map, objectives and secondary actions |
+| 10-sound-settings | Separate saved levels for music, effects and ambience |
+| 11-night-contact-recovery | Safe respawn after fatal contact with two ink creatures at night |
 
 `overview.png` simply arranges three of these unaltered screenshots. Reproduce
 the gallery using `swift tools/contact_sheet.swift <downloaded-captures> <output.png>`.
@@ -27,6 +29,10 @@ and first page are fresh states; later scenes seed reachable progress and a camp
 to make visual comparisons reproducible. The actual campaign is separately
 walked through using the game engine's movement, interaction and survival APIs.
 Fixtures neither load nor overwrite the player's adventure save.
+The nighttime-contact fixture starts at one point of integrity with two nearby
+creatures, exercising the arrival cleanup that previously crashed on the device.
+Audio is muted in capture fixtures; normal gameplay uses the original soundtrack
+and effects documented in `docs/AUDIO.md`.
 
 `nib-motion.gif` is a separate native macOS recording of the **same SpriteKit
 character animator** used on iPhone. It shows four walking directions plus
