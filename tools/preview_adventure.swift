@@ -40,6 +40,9 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         window.makeFirstResponder(skView)
         NSApplication.shared.activate(ignoringOtherApps: true)
         let args = CommandLine.arguments
+        if args.contains("--validate") || args.contains("--capture") || args.contains("--animate") {
+            NotebookAudio.shared.suspend(.preview)
+        }
         if args.contains("--validate") {
             validatePresentation()
         } else if let index = args.firstIndex(of: "--animate"), index + 1 < args.count {
@@ -66,10 +69,15 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
 
     private func validatePresentation() {
         validateNibAnimations()
+        let audioDomain = "NotebookSceneAudioValidation.\(UUID().uuidString)"
+        let audioDefaults = UserDefaults(suiteName: audioDomain)!
+        let sceneAudio = NotebookAudio(defaults: audioDefaults, automaticUpdates: false)
+        sceneAudio.suspend(.preview)
         let cover = AdventureCoverScene(size: sceneSize)
         skView.presentScene(cover)
         precondition(cover.childNode(withName: "//eraser-tool") == nil, "Cover shows only Nib, without an eraser")
-        let scene = adventure(.fresh)
+        let scene = AdventureScene(size: sceneSize, audio: sceneAudio)
+        scene.savesEnabled = false
         skView.presentScene(scene)
         scene.isPaused = true
         precondition(scene.childNode(withName: "//eraser-tool") == nil, "Idle Nib has no floating eraser")
@@ -120,6 +128,12 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         let beforeBag = scene.engine.save
         scene.perform("bag")
         precondition(scene.engine.save == beforeBag, "Bag opens without changing the world")
+        scene.perform("sound")
+        scene.perform("sound-music")
+        precondition(sceneAudio.volume(.music) == 0.75, "The bag sound panel controls the music bus")
+        precondition(sceneAudio.volume(.effects) == 0.75 && scene.engine.save == beforeBag,
+                     "Audio controls do not mutate gameplay or unrelated channels")
+        scene.perform("sound-back")
         scene.perform("craft")
         scene.perform("build-path")
         scene.engine.save.x = 10
@@ -142,6 +156,8 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
         scene.perform("cover")
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [self] in
             precondition(skView.scene is AdventureCoverScene, "Successful save permits exit")
+            precondition(sceneAudio.currentMusic == .cover, "Returning to cover cannot restart the old page music")
+            audioDefaults.removePersistentDomain(forName: audioDomain)
             print("Presentation validation passed: modal pause/input, paint/open, placement, save failure retention.")
             NSApplication.shared.terminate(nil)
         }
@@ -263,6 +279,14 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
                 let scene = self.adventure(AdventurePreviewFixtures.save(for: "camp"))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { scene.perform("bag") }
                 return scene
+            }),
+            ("10-sound-settings", {
+                let scene = self.adventure(AdventurePreviewFixtures.save(for: "camp"))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { scene.perform("sound") }
+                return scene
+            }),
+            ("11-night-contact-recovery", {
+                self.adventure(AdventurePreviewFixtures.save(for: "night-contact"))
             })
         ]
     }

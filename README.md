@@ -79,6 +79,24 @@ repeated placement. Reopen the workbench to cancel. **COMER**, **DESCANSAR** and
 **DIARIO** are in the bag rather than permanent toolbars. Reading and menus
 pause survival.
 
+### Music and sound
+
+Six original looping arrangements follow the cover, surface, underground pages,
+deep seams, night and restored world. Soft paper footsteps alternate with the
+walking stride; brush strokes, rubber scrubbing, chests, building, page turns and
+discoveries have distinct effects. Nearby fires crackle in stereo, and ink and
+night ambience fade with proximity and time of day.
+
+**BOLSA > SONIDO** controls music, effects and ambience separately, from OFF to
+100%. Settings persist without changing the adventure save. Music crossfades
+between moods and becomes quieter while reading. Audio pauses when the app is
+backgrounded, respects the iPhone's silent switch and yields its music to other
+audio. Disconnecting headphones pauses playback until explicitly reactivated.
+No background-audio permission is used.
+
+All audio is bundled and works offline. The original score, synthesizer and
+sound-design source are described in [Audio production](docs/AUDIO.md).
+
 The new adventure saves atomically every five active seconds, after actions,
 and when backgrounded. It uses `notebook-adventure-v2.json`; the original demo's
 `notebookgame.save.json` is left untouched. Corrupt or incompatible files are
@@ -248,12 +266,16 @@ The checks walk the complete campaign with real movement and survival ticks,
 including both return loops. They also cover paint-before-use, duplicate rewards,
 map reachability, ink crossings, fire fuel/protection, walls, erasure, death,
 resource renewal, frame partitioning, save round-trips and corruption handling.
+The CI also runs the suite optimized with checked Swift exclusivity. Its
+nighttime-contact regression covers respawning and entering pages with existing
+enemies: arrival cleanup snapshots the page ID before mutating the creature
+array, avoiding a simultaneous-access abort.
 
 The **same** SpriteKit scene can run on macOS as a developer preview without
 Xcode or an iOS runtime:
 
 ```bash
-swiftc -swift-version 5 -D DEBUG -O -framework Cocoa -framework SpriteKit \
+swiftc -swift-version 5 -D DEBUG -O -framework Cocoa -framework SpriteKit -framework AVFoundation \
   NotebookGame/NotebookGame/Adventure/*.swift tools/preview_adventure.swift \
   -o /tmp/NotebookPreview
 /tmp/NotebookPreview
@@ -287,6 +309,25 @@ Apple Development signing and a provisioning profile that includes the target
 device before installation with `xcrun devicectl device install app`. Signing
 keys and provisioning profiles must stay on the developer's Mac, outside this
 repository and CI artifacts.
+
+Audio assets and playback policy can be checked without a simulator:
+
+```bash
+python3 tools/validate_audio.py
+swiftc -swift-version 5 -framework AVFoundation \
+  NotebookGame/NotebookGame/Adventure/AdventureModel.swift \
+  NotebookGame/NotebookGame/Adventure/AdventureCatalog.swift \
+  NotebookGame/NotebookGame/Adventure/AdventureEngine.swift \
+  NotebookGame/NotebookGame/Adventure/AdventureStore.swift \
+  NotebookGame/NotebookGame/Adventure/NotebookSoundscape.swift \
+  NotebookGame/NotebookGame/Adventure/NotebookAudio.swift \
+  tools/validate_soundscape.swift -o /tmp/validate-soundscape
+/tmp/validate-soundscape
+```
+
+Add `--playback` to exercise actual audio output locally at low volume. The
+default run decodes the assets and uses a recording output to check crossfades,
+mute, cooldowns, saved volumes, interruption handling, footsteps and proximity.
 
 ---
 

@@ -9,6 +9,18 @@ enum AdventurePreviewFixtures {
         case "prologue": return save
         case "first-pigment":
             save.introSeen = true
+        case "night-contact":
+            save.introSeen = true
+            save.elapsed = 197.9
+            save.integrity = 1
+            save.colors = [.brown]
+            save.collected = ["pigment_brown", "first_chest"]
+            save.creatures = [
+                InkCreature(id: "contact-a", pageID: "margin", x: 10, y: 11, remaining: 1),
+                InkCreature(id: "contact-b", pageID: "margin", x: 10.1, y: 11.1, remaining: 1)
+            ]
+            save.nextInkAt = 220
+            save.nextCreatureAt = 220
         case "brown-awakening":
             save.introSeen = true
             save.x = 11

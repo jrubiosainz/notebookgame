@@ -8,6 +8,8 @@ import AppKit
 /// One continuous world: no encounter screen, no damage numbers, only erasure.
 final class AdventureScene: SKScene {
     let engine: AdventureEngine
+    private let audio: NotebookAudio
+    private var footsteps = NotebookFootsteps()
     var savesEnabled = true
     var saveHandler: (AdventureSave) throws -> Void = { try AdventureStore.save($0) }
     #if DEBUG
@@ -49,8 +51,9 @@ final class AdventureScene: SKScene {
     private var keys: Set<UInt16> = []
     #endif
 
-    init(size: CGSize, engine: AdventureEngine = AdventureEngine()) {
+    init(size: CGSize, engine: AdventureEngine = AdventureEngine(), audio: NotebookAudio = .shared) {
         self.engine = engine
+        self.audio = audio
         super.init(size: size)
         scaleMode = .resizeFill
     }
@@ -101,6 +104,7 @@ final class AdventureScene: SKScene {
         observe(NSApplication.willResignActiveNotification) { [weak self] in self?.suspend() }
         observe(NSApplication.didBecomeActiveNotification) { [weak self] in self?.resume() }
         #endif
+        refreshSoundscape()
     }
 
     private func observe(_ name: Notification.Name, action: @escaping () -> Void) {
@@ -126,6 +130,7 @@ final class AdventureScene: SKScene {
         isSuspended = true
         resetInput()
         persist()
+        footsteps.reset()
     }
 
     private func resume() {
@@ -293,10 +298,21 @@ final class AdventureScene: SKScene {
         }
         #endif
         let length = max(1, hypot(movement.dx, movement.dy))
+        let oldX = engine.save.x
+        let oldY = engine.save.y
         _ = engine.move(dx: Double(movement.dx / length) * dt * 3.1,
                         dy: Double(movement.dy / length) * dt * 3.1)
+        if let step = footsteps.advance(distance: hypot(engine.save.x - oldX, engine.save.y - oldY)) {
+            audio.play(step)
+        }
         let oldPage = engine.save.pageID
+        let integrity = engine.save.integrity
+        let revivals = engine.revivalCount
         engine.tick(dt)
+        if revivals != engine.revivalCount {
+            audio.play(.respawn)
+            footsteps.reset()
+        } else if engine.save.integrity < integrity { audio.play(.hurt) }
         if oldPage != engine.save.pageID { world.rebuild(engine); updateCamera(immediate: true) }
         world.refresh(engine, dt: dt, buildMode: selectedBuild)
         updateCamera(immediate: false)
@@ -307,6 +323,7 @@ final class AdventureScene: SKScene {
             hudClock = 0
             refreshHUD()
             refreshLighting()
+            refreshSoundscape()
         }
         if saveClock > 5 {
             saveClock = 0
@@ -316,6 +333,10 @@ final class AdventureScene: SKScene {
             lastToast = message
             showToast(message)
         }
+    }
+
+    private func refreshSoundscape() {
+        audio.setSoundscape(.adventure(engine), reading: modalKind != nil)
     }
 
     private func refreshLighting() {
@@ -348,8 +369,12 @@ final class AdventureScene: SKScene {
     func perform(_ id: String) {
         if modalKind != nil, !modalButtons.contains(where: { $0.actionID == id }) { return }
         NotebookVisuals.tapFeedback()
+        if ["bag", "craft", "journal", "close", "sound", "cancel-build"].contains(id) {
+            audio.play(.uiTap)
+        }
         switch id {
         case "intro-next":
+            audio.play(.pageTurn)
             introIndex += 1
             if introIndex >= Self.opening.count {
                 engine.markIntroSeen()
@@ -358,12 +383,14 @@ final class AdventureScene: SKScene {
                 showToast("Busca el pigmento marron. El diario te guiara.")
             } else { showIntro() }
         case "intro-skip":
+            audio.play(.pageTurn)
             engine.markIntroSeen()
             closeModal()
             persist()
         case "close":
             closeModal()
         case "next-line":
+            audio.play(.talk)
             dialogueIndex += 1
             if dialogueIndex >= dialogueLines.count { closeModal() } else { renderDialogue() }
         case "journal":
@@ -371,7 +398,17 @@ final class AdventureScene: SKScene {
             openModal("journal")
         case "bag":
             openModal("bag")
+        case "sound":
+            openModal("sound")
+        case "sound-back":
+            audio.play(.uiTap)
+            openModal("bag")
+        case "sound-retry":
+            audio.retry()
+            audio.play(.uiTap)
+            renderSound()
         case "journal-next":
+            audio.play(.pageTurn)
             journalPage = (journalPage + 1) % (journalSheets.count + 1)
             renderJournal()
         case "craft":
@@ -379,22 +416,24 @@ final class AdventureScene: SKScene {
         case "eat":
             let event = engine.eat()
             if modalKind == "bag" { renderBag() }
-            consume(event)
+            consume(event, sound: .eat)
         case "rest":
             let event = engine.rest()
             if modalKind == "bag" { renderBag() }
-            consume(event)
+            consume(event, sound: .rest)
         case "erase":
             guard modalKind == nil else { return }
+            let beforeCount = engine.save.creatures.count
             let result = engine.erase()
             if result.success { world.eraseEffect(reach: engine.eraserReach, facing: engine.save.facing) }
-            consume(result, asDialogue: false)
+            consume(result, sound: .erase)
+            if result.success, engine.save.creatures.count < beforeCount { audio.play(.erased) }
         case "interact":
             guard modalKind == nil else { return }
             if let kind = selectedBuild {
                 let result = engine.build(kind, at: engine.targetPoint)
                 if result.success, kind != .wall, kind != .path { selectedBuild = nil }
-                consume(result)
+                consume(result, sound: kind == .campfire ? .fireLight : .build)
             } else if let object = engine.nearbyObject {
                 let wasPainted = engine.save.painted.contains(object.id)
                 let result = engine.interact(object.id)
@@ -402,8 +441,20 @@ final class AdventureScene: SKScene {
                 if let color = result.color, result.success {
                     world.paintEffect(at: object.point, pigment: color, animateHero: justPainted)
                 }
+                let sound: NotebookSound
+                if justPainted { sound = .paint }
+                else {
+                    switch object.kind {
+                    case .pigment: sound = .pigment
+                    case .chest: sound = .chest
+                    case .gate: sound = .pageTurn
+                    case .memory, .inkwell: sound = .memory
+                    case .npc, .rock: sound = .talk
+                    default: sound = .pickup
+                    }
+                }
                 consume(result, asDialogue: !justPainted &&
-                        (object.kind == .npc || object.kind == .memory || object.kind == .inkwell))
+                        (object.kind == .npc || object.kind == .memory || object.kind == .inkwell), sound: sound)
             } else {
                 showToast("Acercate a un dibujo. Tu mapa y tus notas estan en la bolsa.")
             }
@@ -415,9 +466,16 @@ final class AdventureScene: SKScene {
                 showToast("No se pudo guardar. Tu aventura sigue abierta; vuelve a intentarlo.")
                 return
             }
-            view?.presentScene(AdventureCoverScene(size: size), transition: .fade(withDuration: 0.3))
+            audio.play(.pageTurn)
+            view?.presentScene(AdventureCoverScene(size: size, audio: audio), transition: .fade(withDuration: 0.3))
+            return
         default:
-            if id.hasPrefix("build-"), let kind = BuildKind(rawValue: String(id.dropFirst(6))) {
+            if id.hasPrefix("sound-"), let bus = NotebookAudioBus(rawValue: String(id.dropFirst(6))) {
+                audio.cycleVolume(bus)
+                audio.play(.uiTap)
+                renderSound()
+            } else if id.hasPrefix("build-"), let kind = BuildKind(rawValue: String(id.dropFirst(6))) {
+                audio.play(.uiTap)
                 selectedBuild = kind
                 closeModal()
                 showToast("Mira al lugar y pulsa COLOCAR. Verde = valido.")
@@ -426,9 +484,12 @@ final class AdventureScene: SKScene {
         world.refresh(engine, dt: 0, buildMode: selectedBuild)
         refreshHUD()
         refreshLighting()
+        refreshSoundscape()
     }
 
-    private func consume(_ event: AdventureEvent, asDialogue: Bool = false) {
+    private func consume(_ event: AdventureEvent, asDialogue: Bool = false, sound: NotebookSound? = nil) {
+        if !event.success { audio.play(.denied) }
+        else if let sound { audio.play(sound) }
         lastToast = engine.lastMessage ?? ""
         if event.changedPage {
             resetInput()
@@ -450,6 +511,7 @@ final class AdventureScene: SKScene {
             showToast(([event.title] + detail).joined(separator: "  "))
         }
         persist()
+        refreshSoundscape()
     }
 
     private func showToast(_ text: String) {
@@ -470,6 +532,7 @@ final class AdventureScene: SKScene {
 
     private func resetInput() {
         movement = .zero
+        footsteps.reset()
         knob.position = .zero
         joystick.position = stickHome
         #if canImport(UIKit)
@@ -483,6 +546,7 @@ final class AdventureScene: SKScene {
     private func openModal(_ kind: String) {
         resetInput()
         modalKind = kind
+        audio.setReading(true)
         persist()
         renderModal()
     }
@@ -492,6 +556,7 @@ final class AdventureScene: SKScene {
         modal.removeAllChildren()
         modalButtons.removeAll()
         modalKind = nil
+        audio.setReading(false)
         resetInput()
         lastTime = 0
         if wasIntro {
@@ -533,6 +598,7 @@ final class AdventureScene: SKScene {
         case "intro": showIntro()
         case "craft": renderCraft()
         case "bag": renderBag()
+        case "sound": renderSound()
         case "journal": renderJournal()
         case "dialogue": renderDialogue()
         default: break
@@ -563,8 +629,33 @@ final class AdventureScene: SKScene {
                   width: width, height: 61, modal: true, font: 12)
         addButton("DIARIO", id: "journal", x: size.width * 0.70, y: bounds.bottom + 111,
                   width: width, height: 61, modal: true)
-        addButton("VOLVER AL MARGEN", id: "close", x: size.width / 2, y: bounds.bottom + 43,
-                  width: size.width - 100, height: 56, filled: true, modal: true)
+        addButton("VOLVER", id: "close", x: size.width * 0.30, y: bounds.bottom + 43,
+                  width: width, height: 56, filled: true, modal: true)
+        addButton("SONIDO", id: "sound", x: size.width * 0.70, y: bounds.bottom + 43,
+                  width: width, height: 56, modal: true)
+    }
+
+    private func renderSound() {
+        let bounds = modalBase(title: "El sonido del papel", subtitle: "MUSICA ORIGINAL / SONIDOS DEL MARGEN")
+        let gap = min(88, (bounds.top - bounds.bottom - 265) / 3)
+        for (index, bus) in NotebookAudioBus.allCases.enumerated() {
+            let percent = Int((audio.volume(bus) * 100).rounded())
+            let title = "\(bus.title.uppercased())   \(percent == 0 ? "OFF" : "\(percent)%")"
+            addButton(title, id: "sound-" + bus.rawValue, x: size.width / 2,
+                      y: bounds.top - 150 - CGFloat(index) * gap,
+                      width: size.width - 88, height: 61, modal: true, font: 16)
+        }
+        let message = audio.lastError ?? (audio.needsResume
+            ? "Audio pausado al desconectar auriculares o recibir una llamada."
+            : "Toca para cambiar el volumen.\nEl modo silencio del iPhone se respeta.\nSi escuchas otra musica, la nuestra descansa.")
+        let hint = NotebookVisuals.text(message, width: size.width - 92, size: 13,
+                                        color: NotebookVisuals.muted)
+        hint.position = CGPoint(x: size.width / 2, y: bounds.bottom + 167)
+        modal.addChild(hint)
+        addButton("REACTIVAR AUDIO", id: "sound-retry", x: size.width / 2,
+                  y: bounds.bottom + 99, width: size.width - 100, height: 50, modal: true, font: 12)
+        addButton("VOLVER A LA BOLSA", id: "sound-back", x: size.width / 2,
+                  y: bounds.bottom + 43, width: size.width - 100, height: 50, modal: true, font: 12)
     }
 
     private func drawPageMap(center: CGPoint) {

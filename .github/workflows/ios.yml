@@ -32,8 +32,25 @@ jobs:
             NotebookGame/NotebookGame/Adventure/AdventureStore.swift \
             tools/validate_adventure.swift -o "$RUNNER_TEMP/validate-adventure"
           "$RUNNER_TEMP/validate-adventure"
+          swiftc -swift-version 5 -O -enforce-exclusivity=checked \
+            NotebookGame/NotebookGame/Adventure/AdventureModel.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureCatalog.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureEngine.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureStore.swift \
+            tools/validate_adventure.swift -o "$RUNNER_TEMP/validate-adventure-release"
+          "$RUNNER_TEMP/validate-adventure-release"
           python3 tools/validate_assets.py
           python3 tools/validate_maps.py
+          python3 tools/validate_audio.py
+          swiftc -swift-version 5 -framework AVFoundation \
+            NotebookGame/NotebookGame/Adventure/AdventureModel.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureCatalog.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureEngine.swift \
+            NotebookGame/NotebookGame/Adventure/AdventureStore.swift \
+            NotebookGame/NotebookGame/Adventure/NotebookSoundscape.swift \
+            NotebookGame/NotebookGame/Adventure/NotebookAudio.swift \
+            tools/validate_soundscape.swift -o "$RUNNER_TEMP/validate-soundscape"
+          "$RUNNER_TEMP/validate-soundscape"
       - name: Compile iPhone app
         run: |
           xcodebuild -quiet -project NotebookGame/NotebookGame.xcodeproj \
@@ -64,7 +81,7 @@ jobs:
           xcrun simctl status_bar "$DEVICE" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
           xcrun simctl install "$DEVICE" "$RUNNER_TEMP/NotebookBuild/Build/Products/Debug-iphonesimulator/NotebookGame.app"
           mkdir -p "$RUNNER_TEMP/iphone-captures"
-          for SCENE in cover prologue first-pigment brown-awakening camp atlas violet-seam workbench bag; do
+          for SCENE in cover prologue first-pigment brown-awakening camp atlas violet-seam workbench bag sound night-contact; do
             xcrun simctl launch "$DEVICE" com.jrubiosainz.notebookgame -notebook-capture "$SCENE"
             sleep 4
             xcrun simctl io "$DEVICE" screenshot "$RUNNER_TEMP/iphone-captures/$SCENE.png"

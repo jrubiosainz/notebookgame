@@ -34,6 +34,7 @@ struct RootView: View {
 
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-notebook-capture") { NotebookAudio.shared.suspend(.preview) }
         if let index = arguments.firstIndex(of: "-notebook-capture"),
            index + 1 < arguments.count, arguments[index + 1] != "cover" {
             let name = arguments[index + 1]
@@ -41,7 +42,7 @@ struct RootView: View {
                                        engine: AdventureEngine(save: AdventurePreviewFixtures.save(for: name)))
             scene.savesEnabled = false
             scene.capturePanel = name == "atlas" ? "journal"
-                : name == "workbench" ? "craft" : name == "bag" ? "bag" : nil
+                : name == "workbench" ? "craft" : name == "bag" ? "bag" : name == "sound" ? "sound" : nil
             return scene
         }
         #endif

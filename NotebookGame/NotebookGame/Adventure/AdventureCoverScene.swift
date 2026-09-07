@@ -6,13 +6,22 @@ import AppKit
 #endif
 
 final class AdventureCoverScene: SKScene {
+    private let audio: NotebookAudio
     private var buttons: [NotebookButton] = []
     private var confirming = false
     private var loadError: String?
 
+    init(size: CGSize, audio: NotebookAudio = .shared) {
+        self.audio = audio
+        super.init(size: size)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
     override func didMove(to view: SKView) {
         scaleMode = .resizeFill
         build()
+        audio.setSoundscape(.cover)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -107,6 +116,7 @@ final class AdventureCoverScene: SKScene {
     private func select(_ point: CGPoint) {
         guard let button = buttons.first(where: { $0.hit(point, in: self) }) else { return }
         NotebookVisuals.tapFeedback()
+        audio.play(.uiTap)
         switch button.actionID {
         case "new":
             if AdventureStore.hasSave { confirming = true; build() }
@@ -123,7 +133,8 @@ final class AdventureCoverScene: SKScene {
     }
 
     private func enter(_ save: AdventureSave) {
-        let scene = AdventureScene(size: size, engine: AdventureEngine(save: save))
+        audio.play(.pageTurn)
+        let scene = AdventureScene(size: size, engine: AdventureEngine(save: save), audio: audio)
         view?.presentScene(scene, transition: .fade(with: NotebookVisuals.paper, duration: 0.4))
     }
 
