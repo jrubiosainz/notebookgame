@@ -161,6 +161,10 @@ final class NotebookAudio {
     func retry() {
         suspensions.remove(.routeChange)
         suspensions.remove(.interruption)
+        rebuildOutput()
+    }
+
+    func rebuildOutput() {
         lastError = nil
         failureLatched = false
         output.reset()
@@ -282,7 +286,7 @@ final class NotebookAudio {
             self?.otherMusicPlaying = AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint
             self?.applyVolumes()
         }
-        observe(AVAudioSession.mediaServicesWereResetNotification) { [weak self] _ in self?.retry() }
+        observe(AVAudioSession.mediaServicesWereResetNotification) { [weak self] _ in self?.rebuildOutput() }
         #else
         observe(NSApplication.willResignActiveNotification) { [weak self] _ in self?.suspend(.inactive) }
         observe(NSApplication.didBecomeActiveNotification) { [weak self] _ in self?.resume(.inactive) }

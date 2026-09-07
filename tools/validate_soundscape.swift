@@ -100,6 +100,8 @@ struct SoundscapeValidation {
         expect(output.prepares == 1, "Resume does not reload all effects")
         audio.suspend(.routeChange)
         expect(audio.needsResume, "Removing headphones exposes a resume control")
+        audio.rebuildOutput()
+        expect(audio.isSuspended && audio.needsResume, "An audio-server reset must not undo a headphone-unplug pause")
         audio.retry()
         expect(!audio.needsResume && !audio.isSuspended, "Explicit resume restores output")
         audio.suspend(.preview)
